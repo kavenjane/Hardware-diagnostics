@@ -1,38 +1,23 @@
-const rules = require("../rules/healthRules");
+const { evaluateDevice: scoreDevice } = require("../rules/healthRules");
 
-function applyRules(value, ruleSet) {
-  for (const rule of ruleSet) {
-    if (value >= rule.min) {
-      return { health: rule.health, score: rule.score };
-    }
-  }
-  return { health: "UNKNOWN", score: 0 };
+function toNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
 }
 
 module.exports = function evaluateDevice(input) {
-  const components = {};
-
-  components.cpu = applyRules(input.cpu_usage, rules.cpu);
-  components.ram = applyRules(input.ram_gb, rules.ram);
-  components.storage = applyRules(input.storage_health, rules.storage);
-  components.battery = applyRules(input.battery_health, rules.battery);
-
-  components.motherboard = input.motherboard
-    ? { health: "GOOD", score: 10 }
-    : { health: "UNKNOWN", score: 0 };
-
-  const totalScore = Object.values(components)
-    .reduce((sum, c) => sum + c.score, 0);
-
-  let overallHealth = "NOT_REUSABLE";
-  if (totalScore >= 90) overallHealth = "REUSABLE_WITH_CHECK";
-  else if (totalScore >= 70) overallHealth = "REUSABLE";
+  const report = scoreDevice({
+    cpu: toNumber(input.cpu_usage ?? input.cpu),
+    ram: toNumber(input.ram_gb ?? input.ram),
+    storage: toNumber(input.storage_health ?? input.storage),
+    battery: toNumber(input.battery_health ?? input.battery)
+  });
 
   return {
-    components,
+    components: report.components,
     overall: {
-      health: overallHealth,
-      total_score: totalScore
+      health: report.health,
+      total_score: report.totalScore
     }
   };
 };
