@@ -17,7 +17,10 @@ module.exports = function evaluateDevice(input) {
     components: report.components,
     overall: {
       health: report.health,
-      total_score: report.totalScore
+      total_score: report.totalScore,
+      longevity_years: report.longevity?.yearsRemaining ?? 0,
+      sustainability: report.longevity?.sustainability ?? "UNKNOWN",
+      reusable: report.longevity?.reusable ?? false
     }
   };
 };

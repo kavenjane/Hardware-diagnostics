@@ -95,6 +95,29 @@ function getOverallHealth(totalScore) {
   return "POOR";
 }
 
+function estimateLongevityYears(totalScore, components) {
+  const baseYears = (clamp(totalScore, 0, 100) / 100) * 6;
+  const batteryHealth = components?.battery?.health;
+  const batteryPenalty = batteryHealth === "POOR" ? 0.6 : batteryHealth === "FAIR" ? 0.85 : 1;
+  const cpuPenalty = components?.cpu?.health === "POOR" ? 0.7 : 1;
+  const storagePenalty = components?.storage?.health === "POOR" ? 0.8 : 1;
+  const ramPenalty = components?.ram?.health === "POOR" ? 0.85 : 1;
+
+  const adjusted = baseYears * batteryPenalty * cpuPenalty * storagePenalty * ramPenalty;
+  return Math.max(0, Math.round(adjusted * 10) / 10);
+}
+
+function estimateSustainability(totalScore) {
+  if (totalScore >= 80) return "HIGH";
+  if (totalScore >= 55) return "MEDIUM";
+  return "LOW";
+}
+
+function isReusable(components, totalScore) {
+  if (totalScore < 60) return false;
+  return !Object.values(components).some((component) => component.health === "POOR");
+}
+
 // ---------- Main API ----------
 
 function evaluateDevice({ cpu, ram, storage, battery }) {
@@ -133,7 +156,12 @@ function evaluateDevice({ cpu, ram, storage, battery }) {
   return {
     totalScore: Math.round(totalScore),
     health: getOverallHealth(totalScore),
-    components
+    components,
+    longevity: {
+      yearsRemaining: estimateLongevityYears(totalScore, components),
+      sustainability: estimateSustainability(totalScore),
+      reusable: isReusable(components, totalScore)
+    }
   };
 }
 
