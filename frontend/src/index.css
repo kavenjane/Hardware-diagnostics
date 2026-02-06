@@ -3,9 +3,9 @@
   line-height: 1.6;
   font-weight: 400;
 
-  color-scheme: dark;
-  color: #E6EDF3;
-  background-color: #0B1220;
+  color-scheme: light;
+  color: #1F2937;
+  background-color: #F7F8FA;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,5 +26,5 @@ html, body, #root {
 body {
   margin: 0;
   min-width: 320px;
-  background-color: #0B1220;
+  background-color: #F7F8FA;
 }

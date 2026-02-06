@@ -6,8 +6,8 @@
 
 body {
   margin: 0;
-  background: #0B1220;
-  color: #E6EDF3;
+  background: #F7F8FA;
+  color: #1F2937;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   line-height: 1.6;
 }
@@ -19,21 +19,21 @@ body {
 }
 
 .landing-container {
-  background: linear-gradient(135deg, #0B1220 0%, #0F1B2D 100%);
+  background: linear-gradient(135deg, #FFFFFF 0%, #F3F5F9 100%);
   min-height: 100vh;
   padding: 60px 24px;
 }
 
 .card {
-  background: #141F38;
-  border: 1px solid #1F2A44;
+  background: #FFFFFF;
+  border: 1px solid #E6EAF0;
   border-radius: 12px;
   padding: 20px;
   transition: all 0.3s ease;
 }
 
 .card:hover {
-  border-color: #2F81F7;
+  border-color: #7AA7FF;
   transform: translateY(-2px);
 }
 
@@ -47,11 +47,11 @@ body {
 }
 
 .component-card {
-  background: #0F1B2D;
+  background: #FAFBFD;
 }
 
 .btn {
-  background: #2F81F7;
+  background: #4C7FFF;
   color: white;
   border: none;
   padding: 12px 18px;
@@ -63,7 +63,7 @@ body {
 }
 
 .btn:hover:not(:disabled) {
-  background: #1F6FEB;
+  background: #3A6FF5;
   transform: translateY(-1px);
 }
 
@@ -82,13 +82,13 @@ body {
 
 .btn-secondary {
   background: transparent;
-  border: 1px solid #1F2A44;
-  color: #E6EDF3;
+  border: 1px solid #E2E8F0;
+  color: #1F2937;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: #2F81F7;
-  color: #2F81F7;
+  border-color: #4C7FFF;
+  color: #4C7FFF;
 }
 
 .btn-large {
@@ -101,7 +101,7 @@ body {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #2F81F7;
+  color: #4C7FFF;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -115,19 +115,19 @@ body {
 
 .subtitle {
   font-size: 16px;
-  color: #9AA4B2;
+  color: #6B7280;
   margin: 0;
   line-height: 1.6;
 }
 
 .small-text {
   font-size: 13px;
-  color: #9AA4B2;
+  color: #6B7280;
   margin: 8px 0 0 0;
 }
 
 .muted {
-  color: #9AA4B2;
+  color: #6B7280;
 }
 
 .grid {
@@ -147,19 +147,19 @@ body {
 }
 
 .link {
-  color: #2F81F7;
+  color: #4C7FFF;
   text-decoration: none;
   font-size: 14px;
   transition: color 0.3s ease;
 }
 
 .link:hover {
-  color: #1F6FEB;
+  color: #3A6FF5;
 }
 
 h1, h2, h3 {
   margin: 0;
-  color: #E6EDF3;
+  color: #111827;
 }
 
 h1 {
@@ -178,6 +178,6 @@ h3 {
 }
 
 strong {
-  color: #E6EDF3;
+  color: #111827;
   font-weight: 600;
 }
