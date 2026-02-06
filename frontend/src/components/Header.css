@@ -1,12 +1,12 @@
 .header {
-  background: #FFFFFF;
-  border-bottom: 1px solid #E6EAF0;
+  background: #0B1220;
+  border-bottom: 1px solid #1F2A44;
   padding: 0;
   position: sticky;
   top: 0;
   z-index: 100;
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(11, 18, 32, 0.95);
 }
 
 .header-content {
@@ -25,7 +25,7 @@
   cursor: pointer;
   font-weight: 700;
   font-size: 16px;
-  color: #111827;
+  color: #E6EDF3;
   transition: opacity 0.3s ease;
   text-decoration: none;
 }
@@ -55,7 +55,7 @@
 }
 
 .nav-link {
-  color: #6B7280;
+  color: #9AA4B2;
   text-decoration: none;
   font-size: 14px;
   padding: 8px 12px;
@@ -66,14 +66,14 @@
 
 .nav-link:hover,
 .nav-link.active {
-  color: #4C7FFF;
-  background: rgba(76, 127, 255, 0.1);
+  color: #2F81F7;
+  background: rgba(47, 129, 247, 0.1);
 }
 
 .btn-header {
   background: transparent;
-  border: 1px solid #E2E8F0;
-  color: #1F2937;
+  border: 1px solid #1F2A44;
+  color: #E6EDF3;
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
@@ -83,7 +83,7 @@
 }
 
 .btn-header:hover {
-  border-color: #4C7FFF;
-  color: #4C7FFF;
-  background: rgba(76, 127, 255, 0.05);
+  border-color: #2F81F7;
+  color: #2F81F7;
+  background: rgba(47, 129, 247, 0.05);
 }
