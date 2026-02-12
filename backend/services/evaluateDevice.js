@@ -15,6 +15,8 @@ module.exports = function evaluateDevice(input) {
 
   return {
     components: report.components,
+    componentBreakdowns: report.componentBreakdowns,
+    reusabilitySummary: report.reusabilitySummary,
     overall: {
       health: report.health,
       total_score: report.totalScore,

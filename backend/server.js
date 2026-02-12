@@ -413,6 +413,35 @@ app.get("/api/diagnostics", (req, res) => {
   res.json(lastReport);
 });
 
+// ---- Individual component health detail ----
+app.get("/api/component/:name", (req, res) => {
+  if (!lastReport) {
+    return res.status(404).json({ error: "No report yet" });
+  }
+  const name = req.params.name.toLowerCase();
+  const validComponents = ["cpu", "ram", "storage", "battery"];
+  if (!validComponents.includes(name)) {
+    return res.status(400).json({ error: `Invalid component: ${name}. Valid: ${validComponents.join(", ")}` });
+  }
+  const breakdown = lastReport.componentBreakdowns?.[name];
+  if (!breakdown) {
+    return res.status(404).json({ error: `No breakdown data for ${name}` });
+  }
+  res.json({
+    component: breakdown,
+    overallHealth: lastReport.overall?.health,
+    overallScore: lastReport.overall?.total_score
+  });
+});
+
+// ---- Reusability summary ----
+app.get("/api/reusability", (req, res) => {
+  if (!lastReport) {
+    return res.status(404).json({ error: "No report yet" });
+  }
+  res.json(lastReport.reusabilitySummary || { error: "No reusability data" });
+});
+
 // ---- Health check ----
 app.get("/", (req, res) => {
   res.send("Backend running");
