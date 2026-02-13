@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import LiveMonitor from "../components/LiveMonitor";
 
 export default function Analysis() {
   const navigate = useNavigate();
@@ -39,9 +38,6 @@ export default function Analysis() {
           textAlign: "center",
         }}
       >
-        {/* Live Monitor */}
-        <LiveMonitor />
-
         {/* Spinner and Status */}
         <div
           style={{

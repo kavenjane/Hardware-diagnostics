@@ -1,69 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LiveMonitor from "../components/LiveMonitor";
+import useLiveEvaluation from "../hooks/useLiveEvaluation";
 
 export default function Dashboard() {
-  const [evaluation, setEvaluation] = useState(null);
   const [history, setHistory] = useState([]);
-  const [selectedMetric, setSelectedMetric] = useState("totalScore");
+  const lastEvaluationRef = useRef(null);
+  const {
+    evaluation,
+    connectionStatus,
+    lastUpdate,
+    isConnected
+  } = useLiveEvaluation();
 
   useEffect(() => {
-    // Connect to WebSocket for live updates
-    let ws = null;
+    if (!evaluation) return;
+    const evaluationKey = JSON.stringify({
+      standardized: evaluation.standardized?.totalScore,
+      legacy: evaluation.overall?.total_score,
+      model: evaluation.evaluationModel
+    });
 
-    const connectWebSocket = () => {
-      try {
-        ws = new WebSocket("ws://localhost:3000");
+    if (lastEvaluationRef.current === evaluationKey) return;
 
-        ws.onopen = () => {
-          console.log("Dashboard connected to live updates");
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            if (message.type === "evaluation" && message.data) {
-              setEvaluation(message.data);
-              // Keep last 20 evaluations in history
-              setHistory((prev) => [
-                { timestamp: new Date(), data: message.data },
-                ...prev
-              ].slice(0, 20));
-            }
-          } catch (err) {
-            console.error("Error parsing WebSocket message:", err);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-        };
-
-        ws.onclose = () => {
-          // Attempt to reconnect after 3 seconds
-          setTimeout(connectWebSocket, 3000);
-        };
-      } catch (err) {
-        console.error("WebSocket connection error:", err);
-      }
-    };
-
-    // Also fetch initial data via HTTP
-    fetch("http://localhost:3000/api/diagnostics")
-      .then((res) => res.json())
-      .then((data) => {
-        setEvaluation(data);
-        setHistory([{ timestamp: new Date(), data }]);
-      })
-      .catch((err) => console.error("Error fetching initial data:", err));
-
-    connectWebSocket();
-
-    return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
-  }, []);
+    lastEvaluationRef.current = evaluationKey;
+    setHistory((prev) => [
+      { timestamp: new Date(), data: evaluation },
+      ...prev
+    ].slice(0, 20));
+  }, [evaluation]);
 
   const getScoreColor = (score) => {
     if (score >= 85) return "#10B981";
@@ -88,7 +52,12 @@ export default function Dashboard() {
       </div>
 
       {/* Live Monitor Widget */}
-      <LiveMonitor />
+      <LiveMonitor
+        evaluation={evaluation}
+        lastUpdate={lastUpdate}
+        isConnected={isConnected}
+        connectionStatus={connectionStatus}
+      />
 
       {/* Current Evaluation Display */}
       {evaluation && hasStandardized && (

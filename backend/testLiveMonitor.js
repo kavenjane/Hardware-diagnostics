@@ -12,7 +12,7 @@ ws.on("open", () => {
 ws.on("message", (data) => {
   try {
     const message = JSON.parse(data);
-    if (message.type === "update") {
+    if (message.type === "evaluation" || message.type === "update") {
       const report = message.data;
       const metrics = message.metrics;
 

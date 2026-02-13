@@ -16,6 +16,7 @@ app.use(express.json({ limit: "10mb" }));
 // ---- In-memory state (for now) ----
 let processing = false;
 let lastReport = null;
+let lastMetrics = null;
 let activityLog = []; // Store activity events for live graph
 let monitoringInterval = null;
 const connectedClients = new Set();
@@ -33,6 +34,7 @@ function startLiveMonitoring() {
       if (metrics) {
         const report = evaluateDevice(metrics);
         lastReport = report;
+        lastMetrics = metrics;
 
         const activity = {
           timestamp: metrics.timestamp,
@@ -50,7 +52,7 @@ function startLiveMonitoring() {
 
         // Broadcast to all connected WebSocket clients
         const message = JSON.stringify({
-          type: "update",
+          type: "evaluation",
           data: report,
           metrics
         });
@@ -81,7 +83,13 @@ wss.on("connection", (ws) => {
 
   // Send current data immediately
   if (lastReport) {
-    ws.send(JSON.stringify({ type: "update", data: lastReport }));
+    ws.send(
+      JSON.stringify({
+        type: "evaluation",
+        data: lastReport,
+        metrics: lastMetrics
+      })
+    );
   }
 
   // Start monitoring if this is the first client
@@ -109,6 +117,7 @@ app.post("/api/submit-diagnostics", (req, res) => {
   processing = true;
 
   const input = req.body;
+  lastMetrics = input;
 
   // Log activity
   const activity = {

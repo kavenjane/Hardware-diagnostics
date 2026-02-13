@@ -1,69 +1,9 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-export default function LiveMonitor() {
-  const navigate = useNavigate();
-  const [evaluation, setEvaluation] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("connecting");
-
-  useEffect(() => {
-    let ws = null;
-    let reconnectTimeout = null;
-
-    const connectWebSocket = () => {
-      try {
-        ws = new WebSocket("ws://localhost:3000");
-
-        ws.onopen = () => {
-          console.log("WebSocket connected");
-          setIsConnected(true);
-          setConnectionStatus("connected");
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            if (message.type === "evaluation" && message.data) {
-              setEvaluation(message.data);
-              setLastUpdate(new Date());
-            }
-          } catch (err) {
-            console.error("Error parsing WebSocket message:", err);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-          setIsConnected(false);
-          setConnectionStatus("error");
-        };
-
-        ws.onclose = () => {
-          console.log("WebSocket closed");
-          setIsConnected(false);
-          setConnectionStatus("disconnected");
-          // Attempt to reconnect after 3 seconds
-          reconnectTimeout = setTimeout(connectWebSocket, 3000);
-        };
-      } catch (err) {
-        console.error("WebSocket connection error:", err);
-        setConnectionStatus("error");
-      }
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-    };
-  }, []);
+export default function LiveMonitor({
+  evaluation,
+  lastUpdate,
+  isConnected,
+  connectionStatus = "connecting"
+}) {
 
   const getStatusColor = () => {
     if (connectionStatus === "connected") return "#10B981";
