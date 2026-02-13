@@ -1,81 +1,145 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import StandardizedScoreCard from "../components/StandardizedScoreCard";
+import LiveMonitor from "../components/LiveMonitor";
+import CategoryBadge from "../components/CategoryBadge";
 
 export default function Results() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [isLiveUpdating, setIsLiveUpdating] = useState(false);
 
   useEffect(() => {
     // Try WebSocket first for real-time updates
-    const ws = new WebSocket("ws://localhost:3000");
+    let ws = null;
+    let reconnectTimeout = null;
 
-    ws.onopen = () => {
-      console.log("Connected to live updates");
-    };
-
-    ws.onmessage = (event) => {
+    const connectWebSocket = () => {
       try {
-        const message = JSON.parse(event.data);
-        if (message.type === "update" && message.data) {
-          setData(message.data);
-          setError(null);
-        }
+        ws = new WebSocket("ws://localhost:3000");
+
+        ws.onopen = () => {
+          console.log("Connected to live updates");
+          setIsLiveUpdating(true);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === "evaluation" && message.data) {
+              setData(message.data);
+              setError(null);
+            }
+          } catch (err) {
+            console.error("Error parsing WebSocket message:", err);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          setIsLiveUpdating(false);
+          // Fallback to HTTP request
+          fetch("http://localhost:3000/api/diagnostics")
+            .then((res) => {
+              if (!res.ok) throw new Error("No diagnostic report available");
+              return res.json();
+            })
+            .then(setData)
+            .catch((err) => setError(err.message));
+        };
+
+        ws.onclose = () => {
+          console.log("Disconnected from live updates");
+          setIsLiveUpdating(false);
+          // Attempt to reconnect after 3 seconds
+          reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        };
       } catch (err) {
-        console.error("Error parsing WebSocket message:", err);
+        console.error("WebSocket connection error:", err);
+        setIsLiveUpdating(false);
       }
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      // Fallback to HTTP request
-      fetch("http://localhost:3000/api/diagnostics")
-        .then((res) => {
-          if (!res.ok) throw new Error("No diagnostic report available");
-          return res.json();
-        })
-        .then(setData)
-        .catch((err) => setError(err.message));
-    };
-
-    ws.onclose = () => {
-      console.log("Disconnected from live updates");
-    };
+    connectWebSocket();
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
       }
     };
   }, []);
 
   const downloadReport = () => {
     if (!data) return;
-    const reportContent = `SYSTEM HEALTH REPORT
+    
+    let reportContent = `STANDARDIZED HARDWARE REUSABILITY EVALUATION REPORT
 Generated: ${new Date().toLocaleString()}
+
+================================================================================`;
+
+    if (data.standardized) {
+      const { standardized } = data;
+      reportContent += `
+
+EVALUATION MODEL: STANDARDIZED HARDWARE REUSABILITY (Professional Grade)
+
+OVERALL ASSESSMENT
+==================
+Total Score: ${standardized.totalScore}/100
+Classification: ${standardized.classification.level}
+Description: ${standardized.classification.description}
+
+CATEGORY BREAKDOWN
+==================`;
+      
+      Object.entries(standardized.categories).forEach(([key, cat]) => {
+        reportContent += `
+${cat.label.toUpperCase()}: ${cat.score}/${cat.maxScore} (${cat.percentage}%)`;
+      });
+
+      if (standardized.recommendedActions && standardized.recommendedActions.length > 0) {
+        reportContent += `
+
+RECOMMENDATIONS
+===============`;
+        standardized.recommendedActions.forEach((action) => {
+          reportContent += `
+[${action.priority}] ${action.action}
+${action.description}`;
+        });
+      }
+    } else {
+      reportContent += `
+
+EVALUATION MODEL: LEGACY COMPONENT HEALTH
 
 OVERALL SUMMARY
 ===============
 Health Status: ${data.overall.health}
 Health Score: ${data.overall.total_score}/100
-Estimated Remaining Life: ${data.overall.longevity_years} years
-Sustainability: ${data.overall.sustainability}
 Reusable: ${data.overall.reusable ? "YES" : "NO"}
 
 HARDWARE MODULE STATUS
 ======================
 ${Object.entries(data.components)
   .map(([key, value]) => `${key.toUpperCase()}: ${value.health} (Score: ${value.score})`)
-  .join('\n')}
+  .join('\n')}`;
+    }
 
----
-Generated by Device Health Monitor`;
+    reportContent += `
+
+================================================================================
+Generated by Hardware Diagnostic System`;
 
     const blob = new Blob([reportContent], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `health-report-${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = `evaluation-report-${new Date().toISOString().split('T')[0]}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -118,7 +182,17 @@ Generated by Device Health Monitor`;
   if (error) {
     return (
       <div className="container">
-        <p className="muted">{error}</p>
+        <div style={{ padding: "40px 20px", textAlign: "center" }}>
+          <p style={{ color: "#EF4444", fontSize: 16, fontWeight: 600 }}>⚠️ Error</p>
+          <p className="muted">{error}</p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 16 }}
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -126,152 +200,175 @@ Generated by Device Health Monitor`;
   if (!data) {
     return (
       <div className="container">
-        <p className="muted">Loading report…</p>
+        <div style={{ padding: "40px 20px", textAlign: "center" }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            border: "3px solid #1F2A44",
+            borderTopColor: "#2F81F7",
+            borderRadius: "50%",
+            margin: "0 auto 20px",
+            animation: "spin 1.2s linear infinite"
+          }} />
+          <p className="muted">Loading evaluation report…</p>
+          <style>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
       </div>
     );
   }
 
-  const { components, overall } = data;
-
-  const getHealthColor = (health) => {
-    const lower = health.toLowerCase();
-    if (lower === "excellent" || lower === "optimized") return "#10B981";
-    if (lower === "good") return "#3B82F6";
-    if (lower === "fair" || lower === "warning") return "#F59E0B";
-    if (lower === "poor" || lower === "critical") return "#EF4444";
-    return "#9AA4B2";
-  };
+  // Determine which evaluation model to display
+  const hasStandardized = data.standardized !== undefined;
+  const hasLegacy = data.components !== undefined;
 
   return (
     <div className="container">
-      {/* Header with action */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 40 }}>
-        <div>
-          <p className="label">SYSTEM HEALTH REPORT</p>
-          <h1 style={{ fontSize: 32, margin: "8px 0 0 0" }}>System Health Report</h1>
-          <p className="muted" style={{ marginTop: 8 }}>
-            Generated {new Date().toLocaleString()}
-          </p>
-        </div>
-        <button className="btn btn-primary" style={{ whiteSpace: "nowrap" }} onClick={downloadReport}>⬇ Download Report</button>
-      </div>
-
-      {/* Overall summary */}
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", marginTop: 24, marginBottom: 40 }}
-      >
-        <div className="card">
-          <p className="label">OVERALL DEVICE HEALTH</p>
-          <h2 style={{ color: getHealthColor(overall.health), marginTop: 12, fontSize: 28 }}>
-            {overall.health}
-          </h2>
-        </div>
-
-        <div className="card">
-          <p className="label">HEALTH SCORE</p>
-          <div style={{ marginTop: 12, display: "flex", alignItems: "baseline", gap: 8 }}>
-            <h2 style={{ fontSize: 28, margin: 0 }}>{overall.total_score}</h2>
-            <span className="muted" style={{ fontSize: 18 }}>/100</span>
+      {/* Header with Live Monitor */}
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 24 }}>
+          <div>
+            <p className="label">HARDWARE EVALUATION REPORT</p>
+            <h1 style={{ fontSize: 32, margin: "8px 0 0 0" }}>
+              {hasStandardized ? "Standardized Reusability Evaluation" : "Legacy Health Report"}
+            </h1>
+            <p className="muted" style={{ marginTop: 8 }}>
+              Generated {new Date().toLocaleString()}
+            </p>
           </div>
+          <button className="btn btn-primary" style={{ whiteSpace: "nowrap" }} onClick={downloadReport}>
+            ⬇ Download Report
+          </button>
         </div>
 
-        <div className="card">
-          <p className="label">EST. REMAINING LIFE</p>
-          <h2 style={{ marginTop: 12, fontSize: 28 }}>{overall.longevity_years} yrs</h2>
-          <p className="muted" style={{ marginTop: 6 }}>Based on current health</p>
-        </div>
-
-        <div className="card">
-          <p className="label">SUSTAINABILITY</p>
-          <h2 style={{ marginTop: 12, fontSize: 28 }}>{overall.sustainability}</h2>
-          <p className="muted" style={{ marginTop: 6 }}>
-            Reusable: {overall.reusable ? "YES" : "NO"}
-          </p>
-        </div>
+        {/* Live Monitor */}
+        {hasStandardized && <LiveMonitor />}
       </div>
 
-      {/* AI Generated Insights */}
-      <div className="card" style={{ marginBottom: 40, borderLeft: "4px solid #2F81F7" }}>
-        <p className="label">🤖 AI-Generated Health Insights</p>
-        <p className="muted" style={{ marginTop: 12 }}>
-          {data.overall.health === "GOOD" && "System is in good condition. All critical components are functioning normally."}
-          {data.overall.health === "FAIR" && "System is functional but may require maintenance checks. Review individual component status below for details."}
-          {data.overall.health === "POOR" && "System requires attention. Please review the component status and consider maintenance or replacement."}
-        </p>
-      </div>
+      {/* Standardized Evaluation Display */}
+      {hasStandardized && (
+        <div style={{ marginBottom: 60 }}>
+          <StandardizedScoreCard evaluation={data} />
+        </div>
+      )}
 
-      {/* Components */}
-      <h2 style={{ marginBottom: 24 }}>Hardware Module Status</h2>
-
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        }}
-      >
-        {Object.entries(components).map(([key, value]) => {
-          const breakdown = data.componentBreakdowns?.[key];
-          const icon = breakdown?.icon || "📦";
-          const reusable = breakdown?.reusability?.reusable;
-
-          return (
-            <div
-              className="card component-card clickable-card"
-              key={key}
-              onClick={() => navigate(`/component/${key}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") navigate(`/component/${key}`);
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>{icon}</span>
-                  <p className="label" style={{ margin: 0 }}>{key.toUpperCase()}</p>
-                </div>
-                <div style={{ width: 12, height: 12, borderRadius: "50%", background: getHealthColor(value.health) }}></div>
-              </div>
-              <p style={{ margin: "8px 0", fontSize: 12, color: getHealthColor(value.health) }}>{value.health}</p>
-              <p className="muted" style={{ margin: "4px 0", fontSize: 12 }}>Score: {value.score}</p>
-              {reusable !== undefined && (
-                <p style={{ margin: "8px 0 0 0", fontSize: 11, color: reusable ? "#10B981" : "#EF4444" }}>
-                  {reusable ? "♻️ Reusable" : "❌ Not Reusable"}
-                </p>
-              )}
-              <p className="muted" style={{ fontSize: 10, marginTop: 12 }}>Click for details →</p>
+      {/* Legacy Evaluation Display */}
+      {hasLegacy && !hasStandardized && (
+        <>
+          {/* Overall summary */}
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", marginTop: 24, marginBottom: 40 }}
+          >
+            <div className="card">
+              <p className="label">OVERALL DEVICE HEALTH</p>
+              <h2 style={{ marginTop: 12, fontSize: 28 }}>
+                {data.overall.health}
+              </h2>
             </div>
-          );
-        })}
-      </div>
 
-      {/* Reusability Summary */}
-      {data.reusabilitySummary && (
-        <div className="card" style={{ marginTop: 40, borderLeft: "4px solid #2F81F7" }}>
-          <p className="label">♻️ REUSABILITY SUMMARY</p>
-          <p style={{ marginTop: 12, fontSize: 16 }}>
-            <strong>{data.reusabilitySummary.reusableCount}</strong> out of {data.reusabilitySummary.totalComponents} components are reusable.
-          </p>
-          <div style={{ marginTop: 16 }}>
-            {data.reusabilitySummary.breakdown.map((item, i) => (
-              <div key={i} style={{ marginBottom: 8, fontSize: 13 }}>
-                <span style={{ color: item.reusable ? "#10B981" : "#EF4444", marginRight: 8 }}>
-                  {item.reusable ? "✅" : "❌"}
-                </span>
-                <strong>{item.component.toUpperCase()}</strong>: {item.verdict}
-                <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>({item.confidence}% confidence)</span>
+            <div className="card">
+              <p className="label">HEALTH SCORE</p>
+              <div style={{ marginTop: 12, display: "flex", alignItems: "baseline", gap: 8 }}>
+                <h2 style={{ fontSize: 28, margin: 0 }}>{data.overall.total_score}</h2>
+                <span className="muted" style={{ fontSize: 18 }}>/100</span>
               </div>
+            </div>
+
+            <div className="card">
+              <p className="label">EST. REMAINING LIFE</p>
+              <h2 style={{ marginTop: 12, fontSize: 28 }}>{data.overall.longevity_years || "N/A"}</h2>
+              <p className="muted" style={{ marginTop: 6 }}>Based on current health</p>
+            </div>
+
+            <div className="card">
+              <p className="label">SUSTAINABILITY</p>
+              <h2 style={{ marginTop: 12, fontSize: 28 }}>{data.overall.sustainability}</h2>
+              <p className="muted" style={{ marginTop: 6 }}>
+                Reusable: {data.overall.reusable ? "YES" : "NO"}
+              </p>
+            </div>
+          </div>
+
+          {/* Reusability Summary */}
+          {data.reusabilitySummary && (
+            <div className="card" style={{ marginBottom: 40, borderLeft: "4px solid #2F81F7" }}>
+              <p className="label">♻️ REUSABILITY SUMMARY</p>
+              <p style={{ marginTop: 12, fontSize: 16 }}>
+                <strong>{data.reusabilitySummary.reusableCount}</strong> out of {data.reusabilitySummary.totalComponents} components are reusable.
+              </p>
+              <div style={{ marginTop: 16 }}>
+                {data.reusabilitySummary.breakdown.map((item, i) => (
+                  <div key={i} style={{ marginBottom: 8, fontSize: 13 }}>
+                    <span style={{ color: item.reusable ? "#10B981" : "#EF4444", marginRight: 8 }}>
+                      {item.reusable ? "✅" : "❌"}
+                    </span>
+                    <strong>{item.component.toUpperCase()}</strong>: {item.verdict}
+                    <span className="muted" style={{ marginLeft: 8, fontSize: 11 }}>({item.confidence}% confidence)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Components */}
+          <h2 style={{ marginBottom: 24 }}>Hardware Module Status</h2>
+
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            }}
+          >
+            {Object.entries(data.components).map(([key, value]) => {
+              const breakdown = data.componentBreakdowns?.[key];
+              return (
+                <div
+                  className="card component-card clickable-card"
+                  key={key}
+                  onClick={() => navigate(`/component/${key}`)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <p className="label" style={{ margin: 0 }}>{key.toUpperCase()}</p>
+                  </div>
+                  <p style={{ margin: "8px 0", fontSize: 14, fontWeight: 600 }}>{value.health}</p>
+                  <p className="muted" style={{ margin: "4px 0", fontSize: 12 }}>Score: {value.score.toFixed(2)}</p>
+                  <p className="muted" style={{ fontSize: 10, marginTop: 12 }}>Click for details →</p>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Detailed Category Breakdown for Standardized */}
+      {hasStandardized && data.standardized.categories && (
+        <>
+          <h2 style={{ marginBottom: 24, marginTop: 60 }}>Detailed Category Analysis</h2>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {Object.entries(data.standardized.categories).map(([key, category]) => (
+              <CategoryBadge
+                key={key}
+                category={category.label}
+                score={category.score}
+                maxScore={category.maxScore}
+                details={category.details}
+              />
             ))}
           </div>
-        </div>
+        </>
       )}
 
       {/* Actions */}
       <div style={{ marginTop: 60, textAlign: "center", paddingTop: 40, borderTop: "1px solid #1F2A44" }}>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button className="btn btn-secondary" onClick={downloadReport}>⬇ Download Report</button>
-          <button className="btn btn-secondary" onClick={downloadInsights}>💡 Download Insights</button>
+          <button className="btn btn-primary" onClick={downloadReport}>⬇ Download Report</button>
+          <button className="btn btn-secondary" onClick={() => navigate("/")}>🏠 Back to Home</button>
           <button className="btn btn-secondary">🔄 Run Analysis Again</button>
         </div>
       </div>

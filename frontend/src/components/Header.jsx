@@ -17,6 +17,9 @@ export default function Header() {
           <a href="/" className={location.pathname === "/" ? "nav-link active" : "nav-link"}>
             Home
           </a>
+          <a href="/dashboard" className={location.pathname === "/dashboard" ? "nav-link active" : "nav-link"}>
+            Dashboard
+          </a>
           <a href="#" className="nav-link">
             Docs
           </a>

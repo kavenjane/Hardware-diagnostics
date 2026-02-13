@@ -1,56 +1,29 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LiveMonitor from "../components/LiveMonitor";
 
 export default function Analysis() {
   const navigate = useNavigate();
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("processing");
 
   useEffect(() => {
+    // Poll for completion status
     const interval = setInterval(() => {
       fetch("http://localhost:3000/api/status")
         .then((res) => res.json())
         .then((data) => {
           if (!data.processing && data.hasResult) {
-            navigate("/results");
+            setStatus("complete");
+            setTimeout(() => navigate("/results"), 500);
+          }
+          // Update progress if available
+          if (data.progress) {
+            setProgress(data.progress);
           }
         })
         .catch(() => {
-          // silent fail — backend may not be ready yet
-        });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [navigate]);
-
-  const downloadScript = (type) => {
-    const scripts = {
-      bash: {
-        name: "diagnostics.sh",
-        url: "/scripts/diagnostics.sh"
-      },
-      ps1: {
-        name: "diagnostics.ps1",
-        url: "/scripts/diagnostics.ps1"
-      }
-    };
-
-    const script = scripts[type];
-    const link = document.createElement("a");
-    link.href = script.url;
-    link.download = script.name;
-    link.click();
-  };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetch("http://localhost:3000/api/status")
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.processing && data.hasResult) {
-            navigate("/results");
-          }
-        })
-        .catch(() => {
-          // silent fail — backend may not be ready yet
+          // Silent fail — backend may not be ready yet
         });
     }, 1000);
 
@@ -62,11 +35,14 @@ export default function Analysis() {
       <div
         style={{
           maxWidth: 720,
-          margin: "120px auto",
+          margin: "60px auto",
           textAlign: "center",
         }}
       >
-        {/* Spinner */}
+        {/* Live Monitor */}
+        <LiveMonitor />
+
+        {/* Spinner and Status */}
         <div
           style={{
             width: 88,
@@ -81,30 +57,57 @@ export default function Analysis() {
 
         {/* Heading */}
         <h1 style={{ marginBottom: 16, fontSize: 32 }}>
-          Analyzing Your Device
+          {status === "processing" ? "Analyzing Your Device" : "Complete!"}
         </h1>
 
         {/* Description */}
         <p className="subtitle" style={{ marginBottom: 40 }}>
-          We are processing the diagnostic data generated on your device.
-          This operation is read-only and does not impact system performance.
+          {status === "processing"
+            ? "We are processing the diagnostic data generated on your device. This operation is read-only and does not impact system performance."
+            : "Your diagnostic evaluation is ready. Redirecting to results..."}
         </p>
 
         {/* Status card */}
         <div className="card" style={{ background: "#0B1220", borderColor: "#1F2A44" }}>
-          <p className="label">ANALYZING</p>
-          <p className="muted" style={{ marginTop: 8 }}>
-            Processing diagnostic data…
+          <p className="label">
+            {status === "processing" ? "ANALYZING" : "COMPLETE"}
           </p>
+          <p className="muted" style={{ marginTop: 8 }}>
+            {status === "processing"
+              ? "Processing diagnostic data…"
+              : "Generating evaluation report…"}
+          </p>
+          {progress > 0 && (
+            <div
+              style={{
+                marginTop: 16,
+                height: 6,
+                background: "#1F2A44",
+                borderRadius: 3,
+                overflow: "hidden"
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  background: "#2F81F7",
+                  width: `${progress}%`,
+                  transition: "width 0.3s ease"
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Links */}
         <div style={{ marginTop: 40, display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <button onClick={() => downloadScript("bash")} className="link" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>⬇ Download (Linux/Mac)</button>
+          <a href="/" className="link" style={{ color: "#2F81F7", textDecoration: "none" }}>
+            🏠 Home
+          </a>
           <span className="muted">·</span>
-          <button onClick={() => downloadScript("ps1")} className="link" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>⬇ Download (Windows)</button>
-          <span className="muted">·</span>
-          <a href="#" onClick={(e) => { e.preventDefault(); navigate("/instructions"); }} className="link">📖 View Instructions →</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate("/instructions"); }} className="link" style={{ color: "#2F81F7", textDecoration: "none" }}>
+            📖 View Instructions
+          </a>
         </div>
 
         {/* Footer note */}
@@ -112,8 +115,9 @@ export default function Analysis() {
           className="muted"
           style={{ marginTop: 40, fontSize: 13 }}
         >
-          You can keep this page open.
-          Once processing completes, you will be redirected automatically.
+          {status === "processing"
+            ? "You can keep this page open. Once processing completes, you will be redirected automatically."
+            : "Redirecting to results page..."}
         </p>
       </div>
 
