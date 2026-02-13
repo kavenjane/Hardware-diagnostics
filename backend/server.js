@@ -11,7 +11,7 @@ const wss = new WebSocket.Server({ server });
 const PORT = 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // ---- In-memory state (for now) ----
 let processing = false;
@@ -19,6 +19,9 @@ let lastReport = null;
 let activityLog = []; // Store activity events for live graph
 let monitoringInterval = null;
 const connectedClients = new Set();
+
+const OCR_SPACE_ENDPOINT = "https://api.ocr.space/parse/image";
+const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
 // ---- Real-time monitoring ----
 function startLiveMonitoring() {
@@ -440,6 +443,102 @@ app.get("/api/reusability", (req, res) => {
     return res.status(404).json({ error: "No report yet" });
   }
   res.json(lastReport.reusabilitySummary || { error: "No reusability data" });
+});
+
+// ---- OCR proxy (privacy-first: process and discard) ----
+app.post("/api/ocr", async (req, res) => {
+  try {
+    const { imageBase64, fileName } = req.body || {};
+
+    if (!imageBase64) {
+      return res.status(400).json({ error: "imageBase64 is required" });
+    }
+
+    if (!process.env.OCR_SPACE_API_KEY) {
+      return res.status(500).json({ error: "OCR_SPACE_API_KEY not set" });
+    }
+
+    const params = new URLSearchParams();
+    params.append("apikey", process.env.OCR_SPACE_API_KEY);
+    params.append("base64Image", imageBase64);
+    params.append("language", "eng");
+    params.append("OCREngine", "2");
+    if (fileName) params.append("fileName", fileName);
+
+    const ocrResponse = await fetch(OCR_SPACE_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: params.toString()
+    });
+
+    const payload = await ocrResponse.json();
+    if (!ocrResponse.ok || payload?.IsErroredOnProcessing) {
+      const message = payload?.ErrorMessage?.[0] || payload?.ErrorDetails || "OCR failed";
+      return res.status(502).json({ error: message });
+    }
+
+    const text = (payload?.ParsedResults || [])
+      .map((result) => result.ParsedText || "")
+      .join("\n")
+      .trim();
+
+    return res.json({ text });
+  } catch (error) {
+    console.error("OCR error:", error.message);
+    return res.status(500).json({ error: "OCR request failed" });
+  }
+});
+
+// ---- Fix suggestions from OCR text ----
+app.post("/api/fix-suggestions", async (req, res) => {
+  try {
+    const { text } = req.body || {};
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "text is required" });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OPENAI_API_KEY not set" });
+    }
+
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const systemPrompt =
+      "You are a hardware support assistant. Provide concise, safe installation and fixing steps based on OCR text from device labels or serial/model numbers. Avoid unsafe actions and be clear about any missing info.";
+
+    const openaiResponse = await fetch(OPENAI_CHAT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `OCR text:\n${text}\n\nTask: Provide installation tips and common fixes for the identified device. If model is unclear, ask for one missing detail.`
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 350
+      })
+    });
+
+    const payload = await openaiResponse.json();
+    if (!openaiResponse.ok) {
+      const message = payload?.error?.message || "Suggestion request failed";
+      return res.status(502).json({ error: message });
+    }
+
+    const suggestions = payload?.choices?.[0]?.message?.content?.trim() || "";
+    return res.json({ suggestions });
+  } catch (error) {
+    console.error("Suggestion error:", error.message);
+    return res.status(500).json({ error: "Suggestion request failed" });
+  }
 });
 
 // ---- Health check ----

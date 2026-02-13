@@ -1,7 +1,41 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Instructions() {
   const navigate = useNavigate();
+  const [detectedOS, setDetectedOS] = useState("Unknown");
+  const [recommendedTrack, setRecommendedTrack] = useState("linux");
+
+  useEffect(() => {
+    const platform = navigator?.userAgentData?.platform || navigator?.platform || "";
+    const ua = navigator?.userAgent || "";
+    const raw = `${platform} ${ua}`;
+    const isWindows = /Win/i.test(raw);
+    const isMac = /Mac/i.test(raw) && !/iPhone|iPad|iPod/i.test(raw);
+    const isLinux = /Linux|X11|Ubuntu|Debian|Fedora|Arch|Manjaro/i.test(raw) && !/Android/i.test(raw);
+
+    if (isWindows) {
+      setDetectedOS("Windows");
+      setRecommendedTrack("windows");
+      return;
+    }
+    if (isMac) {
+      setDetectedOS("macOS");
+      setRecommendedTrack("linux");
+      return;
+    }
+    if (isLinux) {
+      setDetectedOS("Linux");
+      setRecommendedTrack("linux");
+      return;
+    }
+
+    setDetectedOS("Unknown");
+    setRecommendedTrack("linux");
+  }, []);
+
+  const recommendLabel = recommendedTrack === "windows" ? "Windows (PowerShell)" : "Linux & macOS (Bash)";
+  const recommendColor = recommendedTrack === "windows" ? "#2F81F7" : "#34A853";
 
   return (
     <div className="container" style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -25,9 +59,21 @@ export default function Instructions() {
         <p className="muted">Follow these steps to run diagnostics on your device</p>
       </div>
 
+      <div className="card" style={{ marginBottom: 24, borderLeft: `4px solid ${recommendColor}` }}>
+        <p className="label">Detected OS: {detectedOS}</p>
+        <p className="muted">Recommendation: use the {recommendLabel} steps below.</p>
+      </div>
+
       {/* Windows Instructions */}
       <div className="card" style={{ marginBottom: 24, borderLeft: "4px solid #2F81F7" }}>
-        <p className="label">💻 WINDOWS (PowerShell)</p>
+        <p className="label">
+          💻 WINDOWS (PowerShell)
+          {recommendedTrack === "windows" && (
+            <span style={{ marginLeft: 8, color: "#0B1220", background: "#2F81F7", padding: "2px 8px", borderRadius: 999, fontSize: 12 }}>
+              Recommended
+            </span>
+          )}
+        </p>
         <div style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 12, color: "#E8EAED" }}>Step 1: Download Script</h3>
           <p className="muted">
@@ -80,7 +126,14 @@ export default function Instructions() {
 
       {/* Linux/Mac Instructions */}
       <div className="card" style={{ marginBottom: 24, borderLeft: "4px solid #34A853" }}>
-        <p className="label">🐧 LINUX & macOS (Bash)</p>
+        <p className="label">
+          🐧 LINUX & macOS (Bash)
+          {recommendedTrack === "linux" && (
+            <span style={{ marginLeft: 8, color: "#0B1220", background: "#34A853", padding: "2px 8px", borderRadius: 999, fontSize: 12 }}>
+              Recommended
+            </span>
+          )}
+        </p>
         <div style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 12, color: "#E8EAED" }}>Step 1: Download Script</h3>
           <p className="muted">
