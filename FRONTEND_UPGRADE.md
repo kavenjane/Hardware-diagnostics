@@ -131,6 +131,12 @@ All new components use:
 - WebSocket connection status indicator
 - Automatic refresh on new evaluations
 
+### Mobile PWA
+- Added a dedicated **Mobile PWA** section on the landing page (`/`) with install instructions for:
+  - Android (Chrome → Add to Home screen)
+  - iPhone (Safari → Add to Home Screen)
+- Clarifies current scope: home-screen install guidance is available, while full offline behavior depends on enabling service worker + web manifest configuration.
+
 ### Better Information Architecture
 - Clear hierarchy: Home → Dashboard ↔ Analysis → Results
 - Quick-access dashboard for monitoring

@@ -8,8 +8,9 @@ export default function Analysis() {
 
   useEffect(() => {
     // Poll for completion status
+    const apiHost = window.location.hostname || "localhost";
     const interval = setInterval(() => {
-      fetch("http://localhost:3000/api/status")
+      fetch(`http://${apiHost}:3000/api/status`)
         .then((res) => res.json())
         .then((data) => {
           if (!data.processing && data.hasResult) {

@@ -177,6 +177,63 @@ export default function Landing() {
           </div>
         </div>
 
+        {/* Mobile PWA */}
+        <div style={{ marginTop: 80 }}>
+          <h2 style={{ textAlign: "center", marginBottom: 16 }}>Mobile PWA</h2>
+          <p className="subtitle" style={{ textAlign: "center", marginBottom: 24 }}>
+            Use this app like a mobile app by installing it to your home screen for faster access.
+          </p>
+
+          <div className="card" style={{ maxWidth: 900, margin: "0 auto", borderLeft: "4px solid #34A853" }}>
+            <p style={{ marginTop: 0, color: "#E8EAED" }}>
+              <strong>How to install on mobile:</strong>
+            </p>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+              <div>
+                <h4 style={{ marginTop: 0, marginBottom: 8, color: "#E8EAED" }}>Android (Chrome)</h4>
+                <ol style={{ margin: 0, paddingLeft: 18, color: "#9AA0A6", lineHeight: 1.6 }}>
+                  <li>Open the app URL in Chrome</li>
+                  <li>Tap the browser menu (⋮)</li>
+                  <li>Select "Add to Home screen"</li>
+                  <li>Confirm to install the app icon</li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 style={{ marginTop: 0, marginBottom: 8, color: "#E8EAED" }}>iPhone (Safari)</h4>
+                <ol style={{ margin: 0, paddingLeft: 18, color: "#9AA0A6", lineHeight: 1.6 }}>
+                  <li>Open the app URL in Safari</li>
+                  <li>Tap the Share button</li>
+                  <li>Select "Add to Home Screen"</li>
+                  <li>Tap "Add" to install the app icon</li>
+                </ol>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, background: "#1F2A44", padding: 12, borderRadius: 6 }}>
+              <p style={{ margin: 0, color: "#9AA0A6", fontSize: 14 }}>
+                <strong>Note:</strong> Full offline support depends on enabling service worker and web manifest configuration.
+              </p>
+            </div>
+
+            <div style={{ marginTop: 16, background: "#0B1220", padding: 16, borderRadius: 6, border: "1px solid #1F2A44" }}>
+              <h4 style={{ margin: "0 0 10px 0", color: "#E8EAED" }}>Scanning (Google Vision API + Gemini API)</h4>
+              <p style={{ margin: "0 0 10px 0", color: "#9AA0A6", fontSize: 14 }}>
+                In PWA mode, you can capture a photo/screenshot and process it through OCR + AI summarization.
+              </p>
+              <ol style={{ margin: 0, paddingLeft: 18, color: "#9AA0A6", lineHeight: 1.6, fontSize: 14 }}>
+                <li>Capture or upload an image from your mobile device</li>
+                <li>Extract text using <strong>Google Vision API</strong></li>
+                <li>Analyze and summarize extracted text using <strong>Gemini API</strong></li>
+                <li>Display structured scan insights in the app</li>
+              </ol>
+              <p style={{ margin: "10px 0 0 0", color: "#9AA0A6", fontSize: 13 }}>
+                <strong>Setup:</strong> Configure API keys on the backend before enabling scan endpoints in production.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Continue */}
         <div style={{ marginTop: 100, textAlign: "center" }}>
           <h2>Ready to proceed?</h2>

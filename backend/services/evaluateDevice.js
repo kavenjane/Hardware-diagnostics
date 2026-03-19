@@ -1,6 +1,8 @@
 const {
   evaluateDevice: scoreDevice,
-  evaluateDeviceStandardized
+  evaluateDeviceStandardized,
+  validateOMLSPayload,
+  isOMLSPayload
 } = require("../rules/healthRules");
 
 /**
@@ -20,6 +22,22 @@ function isStandardizedInput(input) {
  */
 module.exports = function evaluateDevice(input = {}) {
   try {
+    // OMLS rule-engine validation flow
+    if (isOMLSPayload(input)) {
+      const omls = validateOMLSPayload(input);
+
+      return {
+        evaluationModel: "OPEN_MODULAR_LAPTOP_STANDARD",
+        omls,
+        overall: {
+          health: omls.overallPass ? "GOOD" : "POOR",
+          total_score: omls.complianceScore,
+          reusable: omls.overallPass,
+          classification: omls.overallPass ? "OMLS_COMPLIANT" : "OMLS_NON_COMPLIANT"
+        }
+      };
+    }
+
     // Detect input format and evaluate accordingly
     if (isStandardizedInput(input)) {
       const result = evaluateDeviceStandardized(input);

@@ -72,6 +72,12 @@ const THERMAL_LIMITS = {
   critical: { idle: 60, load: 95 }
 };
 
+const {
+  validateComponent,
+  validateOMLSPayload,
+  isOMLSPayload
+} = require("./omlsRules");
+
 // ========== UTILITIES ==========
 
 // Single definition of utility functions (no duplicates)
@@ -554,6 +560,9 @@ function generateRecommendations(score, classification, functional, remaining, p
 module.exports = {
   evaluateDevice,
   evaluateDeviceStandardized,
+  validateComponent,
+  validateOMLSPayload,
+  isOMLSPayload,
   scoreFunctionalIntegrity,
   scorePerformanceRetention,
   scoreRemainingLife,

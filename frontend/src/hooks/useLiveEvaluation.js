@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
-const WS_URL = "ws://localhost:3000";
-const FALLBACK_URL = "http://localhost:3000/api/diagnostics";
+const getApiHost = () => {
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  return "localhost";
+};
+
+const API_HOST = getApiHost();
+const WS_URL = `ws://${API_HOST}:3000`;
+const FALLBACK_URL = `http://${API_HOST}:3000/api/diagnostics`;
 
 export default function useLiveEvaluation() {
   const [evaluation, setEvaluation] = useState(null);

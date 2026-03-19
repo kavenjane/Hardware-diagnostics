@@ -189,7 +189,7 @@ export default function Instructions() {
         <p className="label">⚠️ IMPORTANT NOTES</p>
         <ul style={{ marginTop: 12, marginLeft: 20, color: "#9AA0A6" }}>
           <li style={{ marginBottom: 12 }}>
-            Make sure the backend is running at <code style={{ background: "#141F38", padding: "2px 6px", borderRadius: 3 }}>http://localhost:3000</code>
+            Make sure the backend is running at <code style={{ background: "#141F38", padding: "2px 6px", borderRadius: 3 }}>http://&lt;your-ip&gt;:3000</code>
           </li>
           <li style={{ marginBottom: 12 }}>
             The script will send your device diagnostics to the backend for analysis

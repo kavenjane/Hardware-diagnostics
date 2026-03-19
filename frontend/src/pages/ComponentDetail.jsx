@@ -13,7 +13,8 @@ export default function ComponentDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3000");
+    const apiHost = window.location.hostname || "localhost";
+    const ws = new WebSocket(`ws://${apiHost}:3000`);
 
     ws.onmessage = (event) => {
       try {
@@ -35,7 +36,7 @@ export default function ComponentDetail() {
     };
 
     ws.onerror = () => {
-      fetch(`http://localhost:3000/api/component/${name}`)
+      fetch(`http://${apiHost}:3000/api/component/${name}`)
         .then((res) => {
           if (!res.ok) throw new Error("Component data not available");
           return res.json();
@@ -232,6 +233,12 @@ export default function ComponentDetail() {
               {comp.toUpperCase()}
             </button>
           ))}
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate("/dashboard")}
+          >
+            OTHER COMPONENTS
+          </button>
         </div>
       </div>
     </div>
