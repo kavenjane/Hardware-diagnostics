@@ -2,12 +2,38 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="$SCRIPT_DIR/diagnostics.sh"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_URL="http://localhost:3000/api/status"
 FRONTEND_URL="http://localhost:5173/"
-LOG_DIR="$PROJECT_ROOT/.logs"
+
+if [ -d "$SCRIPT_DIR/../backend" ] && [ -d "$SCRIPT_DIR/../frontend" ]; then
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+elif [ -d "$SCRIPT_DIR/backend" ] && [ -d "$SCRIPT_DIR/frontend" ]; then
+    PROJECT_ROOT="$SCRIPT_DIR"
+else
+    PROJECT_ROOT=""
+fi
+
+LOG_DIR="$SCRIPT_DIR/.logs"
 
 mkdir -p "$LOG_DIR"
+
+validate_diagnostics_script() {
+    local firstLine
+    firstLine="$(head -n 1 "$SCRIPT_PATH" 2>/dev/null || true)"
+
+    if echo "$firstLine" | grep -qi "<!doctype html>"; then
+        echo "ERROR: diagnostics.sh appears to be an HTML page, not a shell script."
+        echo "Please re-download diagnostics.sh from the app and ensure file contents start with #!/bin/bash"
+        return 1
+    fi
+
+    if ! echo "$firstLine" | grep -q "^#!"; then
+        echo "ERROR: diagnostics.sh is not a valid executable script (missing shebang)."
+        return 1
+    fi
+
+    return 0
+}
 
 wait_for_url() {
     local url="$1"
@@ -31,6 +57,12 @@ start_backend_if_needed() {
         return 0
     fi
 
+    if [ -z "$PROJECT_ROOT" ]; then
+        echo "ERROR: Backend is not running and project root was not detected for auto-start."
+        echo "Run backend manually: cd /path/to/project/backend && npm start"
+        return 1
+    fi
+
     echo "Starting backend..."
     (
         cd "$PROJECT_ROOT/backend" || exit 1
@@ -45,6 +77,12 @@ start_frontend_if_needed() {
     if curl -sS -m 2 "$FRONTEND_URL" >/dev/null 2>&1; then
         echo "✓ Frontend already running"
         return 0
+    fi
+
+    if [ -z "$PROJECT_ROOT" ]; then
+        echo "ERROR: Frontend is not running and project root was not detected for auto-start."
+        echo "Run frontend manually: cd /path/to/project/frontend && npm run dev"
+        return 1
     fi
 
     echo "Starting frontend..."
@@ -67,6 +105,8 @@ if [ ! -f "$SCRIPT_PATH" ]; then
     echo "Please ensure both files are in the same folder."
     exit 1
 fi
+
+validate_diagnostics_script || exit 1
 
 # Make the script executable
 echo "Making diagnostics script executable..."

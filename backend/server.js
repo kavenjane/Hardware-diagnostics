@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -23,6 +25,7 @@ const connectedClients = new Set();
 
 const OCR_SPACE_ENDPOINT = "https://api.ocr.space/parse/image";
 const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const GROQ_CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 // ---- Real-time monitoring ----
 function startLiveMonitoring() {
@@ -547,6 +550,157 @@ app.post("/api/fix-suggestions", async (req, res) => {
   } catch (error) {
     console.error("Suggestion error:", error.message);
     return res.status(500).json({ error: "Suggestion request failed" });
+  }
+});
+
+// ---- AI human-readable report summary ----
+app.post("/api/ai-report-summary", async (req, res) => {
+  try {
+    const { report } = req.body || {};
+
+    if (!report || typeof report !== "object") {
+      return res.status(400).json({ error: "report object is required" });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ error: "GROQ_API_KEY not set" });
+    }
+
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+    const systemPrompt =
+      "You are a hardware diagnostics assistant. Convert technical evaluation data into a concise, human-understandable explanation. Keep it practical, clear, and non-alarmist.";
+
+    const userPrompt = [
+      "Given this hardware diagnostics report JSON, produce:",
+      "1) a plain-language summary for a non-technical user (2-4 short sentences)",
+      "2) top 3 actionable next steps",
+      "3) one-line final recommendation",
+      "Return as JSON with keys: summary, nextSteps (array), recommendation.",
+      "",
+      JSON.stringify(report)
+    ].join("\n");
+
+    const groqResponse = await fetch(GROQ_CHAT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 350
+      })
+    });
+
+    const payload = await groqResponse.json();
+    if (!groqResponse.ok) {
+      const message = payload?.error?.message || "AI summary request failed";
+      return res.status(502).json({ error: message });
+    }
+
+    const content = payload?.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      return res.status(502).json({ error: "AI returned empty summary" });
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (!match) {
+        return res.status(502).json({ error: "AI summary parsing failed" });
+      }
+      try {
+        parsed = JSON.parse(match[0]);
+      } catch {
+        return res.status(502).json({ error: "AI summary parsing failed" });
+      }
+    }
+
+    return res.json({
+      summary: parsed.summary || "",
+      nextSteps: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [],
+      recommendation: parsed.recommendation || ""
+    });
+  } catch (error) {
+    console.error("AI report summary error:", error.message);
+    return res.status(500).json({ error: "AI report summary request failed" });
+  }
+});
+
+// ---- AI chat over current report (Groq) ----
+app.post("/api/ai-chat", async (req, res) => {
+  try {
+    const { report, message, history } = req.body || {};
+
+    if (!report || typeof report !== "object") {
+      return res.status(400).json({ error: "report object is required" });
+    }
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ error: "message is required" });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ error: "GROQ_API_KEY not set" });
+    }
+
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+    const systemPrompt = [
+      "You are a hardware diagnostics assistant.",
+      "Answer in clear, simple language for non-technical users.",
+      "Use only the provided report context; if info is missing, say so.",
+      "Keep answers concise and practical."
+    ].join(" ");
+
+    const sanitizedHistory = Array.isArray(history)
+      ? history
+          .filter((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
+          .slice(-8)
+      : [];
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Report context JSON:\n${JSON.stringify(report)}` },
+      ...sanitizedHistory,
+      { role: "user", content: String(message).trim() }
+    ];
+
+    const groqResponse = await fetch(GROQ_CHAT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.2,
+        max_tokens: 450
+      })
+    });
+
+    const payload = await groqResponse.json();
+    if (!groqResponse.ok) {
+      const messageText = payload?.error?.message || "AI chat request failed";
+      return res.status(502).json({ error: messageText });
+    }
+
+    const answer = payload?.choices?.[0]?.message?.content?.trim() || "";
+    if (!answer) {
+      return res.status(502).json({ error: "AI returned empty response" });
+    }
+
+    return res.json({ answer });
+  } catch (error) {
+    console.error("AI chat error:", error.message);
+    return res.status(500).json({ error: "AI chat request failed" });
   }
 });
 

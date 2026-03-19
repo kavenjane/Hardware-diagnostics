@@ -7,19 +7,19 @@ export default function Landing() {
     const scripts = {
       bash: {
         name: "diagnostics.sh",
-        url: "/scripts/diagnostics.sh"
+        url: "/diagnostics.sh"
       },
       ps1: {
         name: "diagnostics.ps1",
-        url: "/scripts/diagnostics.ps1"
+        url: "/diagnostics.ps1"
       },
       launcher_bat: {
         name: "run_diagnostics.bat",
-        url: "/scripts/run_diagnostics.bat"
+        url: "/run_diagnostics.bat"
       },
       launcher_sh: {
         name: "run_diagnostics.sh",
-        url: "/scripts/run_diagnostics.sh"
+        url: "/run_diagnostics.sh"
       }
     };
 
@@ -216,21 +216,6 @@ export default function Landing() {
               </p>
             </div>
 
-            <div style={{ marginTop: 16, background: "#0B1220", padding: 16, borderRadius: 6, border: "1px solid #1F2A44" }}>
-              <h4 style={{ margin: "0 0 10px 0", color: "#E8EAED" }}>Scanning (Google Vision API + Gemini API)</h4>
-              <p style={{ margin: "0 0 10px 0", color: "#9AA0A6", fontSize: 14 }}>
-                In PWA mode, you can capture a photo/screenshot and process it through OCR + AI summarization.
-              </p>
-              <ol style={{ margin: 0, paddingLeft: 18, color: "#9AA0A6", lineHeight: 1.6, fontSize: 14 }}>
-                <li>Capture or upload an image from your mobile device</li>
-                <li>Extract text using <strong>Google Vision API</strong></li>
-                <li>Analyze and summarize extracted text using <strong>Gemini API</strong></li>
-                <li>Display structured scan insights in the app</li>
-              </ol>
-              <p style={{ margin: "10px 0 0 0", color: "#9AA0A6", fontSize: 13 }}>
-                <strong>Setup:</strong> Configure API keys on the backend before enabling scan endpoints in production.
-              </p>
-            </div>
           </div>
         </div>
 
