@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { buildApiUrl, getWebSocketUrl } from "../utils/apiBase";
 
-const getApiHost = () => {
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    return window.location.hostname;
-  }
-  return "localhost";
-};
-
-const API_HOST = getApiHost();
-const WS_URL = `ws://${API_HOST}:3000`;
-const FALLBACK_URL = `http://${API_HOST}:3000/api/diagnostics`;
+const WS_URL = getWebSocketUrl();
+const FALLBACK_URL = buildApiUrl("/api/diagnostics");
 
 export default function useLiveEvaluation() {
   const [evaluation, setEvaluation] = useState(null);
@@ -41,6 +34,11 @@ export default function useLiveEvaluation() {
     };
 
     const connectWebSocket = () => {
+      if (!WS_URL) {
+        setConnectionStatus("fallback");
+        return;
+      }
+
       try {
         wsRef.current = new WebSocket(WS_URL);
 

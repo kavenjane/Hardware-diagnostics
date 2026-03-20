@@ -5,6 +5,7 @@ import ReusabilityBadge from "../components/ReusabilityBadge";
 import ScoreRing from "../components/ScoreRing";
 import RecommendationList from "../components/RecommendationList";
 import LongevityBar from "../components/LongevityBar";
+import { buildApiUrl, getWebSocketUrl } from "../utils/apiBase";
 
 export default function ComponentDetail() {
   const { name } = useParams();
@@ -13,8 +14,25 @@ export default function ComponentDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const apiHost = window.location.hostname || "localhost";
-    const ws = new WebSocket(`ws://${apiHost}:3000`);
+    const wsUrl = getWebSocketUrl();
+    let ws = null;
+
+    const fetchComponent = () => {
+      fetch(buildApiUrl(`/api/component/${name}`))
+        .then((res) => {
+          if (!res.ok) throw new Error("Component data not available");
+          return res.json();
+        })
+        .then(setData)
+        .catch((err) => setError(err.message));
+    };
+
+    if (!wsUrl) {
+      fetchComponent();
+      return () => {};
+    }
+
+    ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
       try {
@@ -36,17 +54,11 @@ export default function ComponentDetail() {
     };
 
     ws.onerror = () => {
-      fetch(`http://${apiHost}:3000/api/component/${name}`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Component data not available");
-          return res.json();
-        })
-        .then(setData)
-        .catch((err) => setError(err.message));
+      fetchComponent();
     };
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) ws.close();
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
     };
   }, [name]);
 

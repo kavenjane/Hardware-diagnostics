@@ -8,8 +8,12 @@ const evaluateDevice = require("./services/evaluateDevice");
 const SystemMonitor = require("./services/systemMonitor");
 
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const IS_SERVERLESS =
+  process.env.VERCEL === "1" ||
+  process.env.VERCEL === "true" ||
+  Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+const server = IS_SERVERLESS ? null : http.createServer(app);
+const wss = IS_SERVERLESS ? null : new WebSocket.Server({ server });
 const PORT = 3000;
 
 app.use(cors());
@@ -24,6 +28,7 @@ let monitoringInterval = null;
 const connectedClients = new Set();
 
 const OCR_SPACE_ENDPOINT = "https://api.ocr.space/parse/image";
+const GOOGLE_VISION_ENDPOINT = "https://vision.googleapis.com/v1/images:annotate";
 const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const GROQ_CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -80,9 +85,10 @@ function stopLiveMonitoring() {
 }
 
 // ---- WebSocket connection handling ----
-wss.on("connection", (ws) => {
-  connectedClients.add(ws);
-  console.log("Client connected. Total clients:", connectedClients.size);
+if (wss) {
+  wss.on("connection", (ws) => {
+    connectedClients.add(ws);
+    console.log("Client connected. Total clients:", connectedClients.size);
 
   // Send current data immediately
   if (lastReport) {
@@ -100,9 +106,9 @@ wss.on("connection", (ws) => {
     startLiveMonitoring();
   }
 
-  ws.on("close", () => {
-    connectedClients.delete(ws);
-    console.log("Client disconnected. Total clients:", connectedClients.size);
+    ws.on("close", () => {
+      connectedClients.delete(ws);
+      console.log("Client disconnected. Total clients:", connectedClients.size);
 
     // Stop monitoring if no clients
     if (connectedClients.size === 0) {
@@ -110,10 +116,11 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("error", (error) => {
-    console.error("WebSocket error:", error.message);
+    ws.on("error", (error) => {
+      console.error("WebSocket error:", error.message);
+    });
   });
-});
+}
 
 // ---- Submit diagnostics (from script) ----
 app.post("/api/submit-diagnostics", (req, res) => {
@@ -457,46 +464,161 @@ app.get("/api/reusability", (req, res) => {
   res.json(lastReport.reusabilitySummary || { error: "No reusability data" });
 });
 
+function stripDataUrlPrefix(imageBase64 = "") {
+  const marker = "base64,";
+  const markerIndex = imageBase64.indexOf(marker);
+  if (markerIndex === -1) return imageBase64.trim();
+  return imageBase64.slice(markerIndex + marker.length).trim();
+}
+
+function isLikelyBase64(content = "") {
+  return /^[A-Za-z0-9+/=\s]+$/.test(content);
+}
+
+async function extractTextWithGoogleVision(rawImageBase64) {
+  if (!process.env.GOOGLE_VISION_API_KEY) {
+    throw new Error("GOOGLE_VISION_API_KEY not set");
+  }
+
+  const visionResponse = await fetch(
+    `${GOOGLE_VISION_ENDPOINT}?key=${encodeURIComponent(process.env.GOOGLE_VISION_API_KEY)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        requests: [
+          {
+            image: { content: rawImageBase64 },
+            features: [{ type: "TEXT_DETECTION" }]
+          }
+        ]
+      })
+    }
+  );
+
+  const payload = await visionResponse.json();
+  if (!visionResponse.ok) {
+    const message = payload?.error?.message || "Google Vision OCR failed";
+    throw new Error(message);
+  }
+
+  const response = payload?.responses?.[0] || {};
+  if (response?.error?.message) {
+    throw new Error(response.error.message);
+  }
+
+  const text =
+    response?.fullTextAnnotation?.text ||
+    response?.textAnnotations?.[0]?.description ||
+    "";
+
+  return text.trim();
+}
+
+async function extractTextWithOcrSpace(imageBase64, fileName) {
+  if (!process.env.OCR_SPACE_API_KEY) {
+    throw new Error("OCR_SPACE_API_KEY not set");
+  }
+
+  const params = new URLSearchParams();
+  params.append("apikey", process.env.OCR_SPACE_API_KEY);
+  params.append("base64Image", imageBase64);
+  params.append("language", "eng");
+  params.append("OCREngine", "2");
+  if (fileName) params.append("fileName", fileName);
+
+  const ocrResponse = await fetch(OCR_SPACE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: params.toString()
+  });
+
+  const payload = await ocrResponse.json();
+  if (!ocrResponse.ok || payload?.IsErroredOnProcessing) {
+    const message = payload?.ErrorMessage?.[0] || payload?.ErrorDetails || "OCR Space failed";
+    throw new Error(message);
+  }
+
+  const text = (payload?.ParsedResults || [])
+    .map((result) => result.ParsedText || "")
+    .join("\n")
+    .trim();
+
+  return text;
+}
+
 // ---- OCR proxy (privacy-first: process and discard) ----
 app.post("/api/ocr", async (req, res) => {
   try {
-    const { imageBase64, fileName } = req.body || {};
+    const { imageBase64, fileName, provider = "auto" } = req.body || {};
 
     if (!imageBase64) {
       return res.status(400).json({ error: "imageBase64 is required" });
     }
 
-    if (!process.env.OCR_SPACE_API_KEY) {
-      return res.status(500).json({ error: "OCR_SPACE_API_KEY not set" });
+    const selectedProvider = String(provider).toLowerCase();
+    if (!["auto", "google", "ocr_space"].includes(selectedProvider)) {
+      return res.status(400).json({ error: "provider must be one of: auto, google, ocr_space" });
     }
 
-    const params = new URLSearchParams();
-    params.append("apikey", process.env.OCR_SPACE_API_KEY);
-    params.append("base64Image", imageBase64);
-    params.append("language", "eng");
-    params.append("OCREngine", "2");
-    if (fileName) params.append("fileName", fileName);
+    const rawImageBase64 = stripDataUrlPrefix(imageBase64);
+    if (!rawImageBase64 || !isLikelyBase64(rawImageBase64)) {
+      return res.status(400).json({ error: "imageBase64 must contain valid base64 image content" });
+    }
 
-    const ocrResponse = await fetch(OCR_SPACE_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: params.toString()
+    let text = "";
+    let usedProvider = selectedProvider;
+    const providerErrors = [];
+
+    const canUseGoogle = Boolean(process.env.GOOGLE_VISION_API_KEY);
+    const canUseOcrSpace = Boolean(process.env.OCR_SPACE_API_KEY);
+
+    if (!canUseGoogle && !canUseOcrSpace) {
+      return res.status(500).json({
+        error: "No OCR provider configured. Set GOOGLE_VISION_API_KEY or OCR_SPACE_API_KEY"
+      });
+    }
+
+    if ((selectedProvider === "google" || selectedProvider === "auto") && canUseGoogle) {
+      try {
+        text = await extractTextWithGoogleVision(rawImageBase64);
+        usedProvider = "google";
+      } catch (googleError) {
+        providerErrors.push(`google: ${googleError.message}`);
+        if (selectedProvider === "google") {
+          return res.status(502).json({ error: googleError.message });
+        }
+      }
+    }
+
+    if (!text && (selectedProvider === "ocr_space" || selectedProvider === "auto") && canUseOcrSpace) {
+      try {
+        text = await extractTextWithOcrSpace(imageBase64, fileName);
+        usedProvider = "ocr_space";
+      } catch (ocrSpaceError) {
+        providerErrors.push(`ocr_space: ${ocrSpaceError.message}`);
+        if (selectedProvider === "ocr_space") {
+          return res.status(502).json({ error: ocrSpaceError.message });
+        }
+      }
+    }
+
+    if (!text) {
+      return res.status(502).json({
+        error: "OCR failed for all available providers",
+        details: providerErrors
+      });
+    }
+
+    return res.json({
+      text,
+      provider: usedProvider,
+      ...(providerErrors.length > 0 ? { warnings: providerErrors } : {})
     });
-
-    const payload = await ocrResponse.json();
-    if (!ocrResponse.ok || payload?.IsErroredOnProcessing) {
-      const message = payload?.ErrorMessage?.[0] || payload?.ErrorDetails || "OCR failed";
-      return res.status(502).json({ error: message });
-    }
-
-    const text = (payload?.ParsedResults || [])
-      .map((result) => result.ParsedText || "")
-      .join("\n")
-      .trim();
-
-    return res.json({ text });
   } catch (error) {
     console.error("OCR error:", error.message);
     return res.status(500).json({ error: "OCR request failed" });
@@ -709,7 +831,11 @@ app.get("/", (req, res) => {
   res.send("Backend running");
 });
 
-server.listen(PORT, () => {
-  console.log(`Backend running at http://localhost:${PORT}`);
-  console.log(`WebSocket server running on ws://localhost:${PORT}`);
-});
+if (!IS_SERVERLESS && require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Backend running at http://localhost:${PORT}`);
+    console.log(`WebSocket server running on ws://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

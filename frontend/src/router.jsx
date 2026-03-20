@@ -5,6 +5,7 @@ import Results from "./pages/Results";
 import Dashboard from "./pages/Dashboard";
 import Instructions from "./pages/Instructions";
 import ComponentDetail from "./pages/ComponentDetail";
+import Scan from "./pages/Scan";
 
 export default function Router() {
   return (
@@ -13,6 +14,7 @@ export default function Router() {
       <Route path="/analysis" element={<Analysis />} />
       <Route path="/results" element={<Results />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/scan" element={<Scan />} />
       <Route path="/instructions" element={<Instructions />} />
       <Route path="/component/:name" element={<ComponentDetail />} />
     </Routes>

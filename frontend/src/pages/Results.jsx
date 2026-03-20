@@ -4,6 +4,7 @@ import StandardizedScoreCard from "../components/StandardizedScoreCard";
 import LiveMonitor from "../components/LiveMonitor";
 import CategoryBadge from "../components/CategoryBadge";
 import useLiveEvaluation from "../hooks/useLiveEvaluation";
+import { buildApiUrl } from "../utils/apiBase";
 
 const hashString = (value = "") => {
   let hash = 0;
@@ -119,8 +120,7 @@ export default function Results() {
 
     lastChatRequestRef.current = { question: normalized, at: now };
 
-    const apiHost = window.location.hostname || "localhost";
-    const endpoint = `http://${apiHost}:3000/api/ai-chat`;
+    const endpoint = buildApiUrl("/api/ai-chat");
     const historyForApi = chatMessages.slice(-8).map((msg) => ({ role: msg.role, content: msg.content }));
 
     setChatMessages((prev) => [...prev, { role: "user", content: question }]);
@@ -176,8 +176,7 @@ export default function Results() {
       }
     }
 
-    const apiHost = window.location.hostname || "localhost";
-    const endpoint = `http://${apiHost}:3000/api/ai-report-summary`;
+    const endpoint = buildApiUrl("/api/ai-report-summary");
     let cancelled = false;
 
     setAiSummaryLoading(true);

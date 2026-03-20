@@ -216,6 +216,12 @@ export default function Landing() {
               </p>
             </div>
 
+            <div style={{ marginTop: 16, textAlign: "center" }}>
+              <button className="btn btn-primary" onClick={() => navigate("/scan")}>
+                📷 Open PWA Scanning
+              </button>
+            </div>
+
           </div>
         </div>
 

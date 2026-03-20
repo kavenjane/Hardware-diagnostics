@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { buildApiUrl } from "../utils/apiBase";
 
 export default function Analysis() {
   const navigate = useNavigate();
@@ -8,9 +9,8 @@ export default function Analysis() {
 
   useEffect(() => {
     // Poll for completion status
-    const apiHost = window.location.hostname || "localhost";
     const interval = setInterval(() => {
-      fetch(`http://${apiHost}:3000/api/status`)
+      fetch(buildApiUrl("/api/status"))
         .then((res) => res.json())
         .then((data) => {
           if (!data.processing && data.hasResult) {
