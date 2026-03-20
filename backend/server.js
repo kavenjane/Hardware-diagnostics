@@ -1,11 +1,15 @@
 require("dotenv").config();
 
+const path = require("path");
+const os = require("os");
+const { writeFile, unlink } = require("fs/promises");
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const WebSocket = require("ws");
 const evaluateDevice = require("./services/evaluateDevice");
 const SystemMonitor = require("./services/systemMonitor");
+const { runRoboflowOcr } = require("./services/roboflowOcr");
 
 const app = express();
 const IS_SERVERLESS =
@@ -27,9 +31,6 @@ let activityLog = []; // Store activity events for live graph
 let monitoringInterval = null;
 const connectedClients = new Set();
 
-const OCR_SPACE_ENDPOINT = "https://api.ocr.space/parse/image";
-const GOOGLE_VISION_ENDPOINT = "https://vision.googleapis.com/v1/images:annotate";
-const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const GROQ_CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 function getApiKey(req, envName, headerName) {
@@ -484,156 +485,102 @@ function isLikelyBase64(content = "") {
   return /^[A-Za-z0-9+/=\s]+$/.test(content);
 }
 
-async function extractTextWithGoogleVision(rawImageBase64, apiKey) {
-  if (!apiKey) {
-    throw new Error("GOOGLE_VISION_API_KEY not set");
-  }
-
-  const visionResponse = await fetch(
-    `${GOOGLE_VISION_ENDPOINT}?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            image: { content: rawImageBase64 },
-            features: [{ type: "TEXT_DETECTION" }]
-          }
-        ]
-      })
-    }
-  );
-
-  const payload = await visionResponse.json();
-  if (!visionResponse.ok) {
-    const message = payload?.error?.message || "Google Vision OCR failed";
-    throw new Error(message);
-  }
-
-  const response = payload?.responses?.[0] || {};
-  if (response?.error?.message) {
-    throw new Error(response.error.message);
-  }
-
-  const text =
-    response?.fullTextAnnotation?.text ||
-    response?.textAnnotations?.[0]?.description ||
-    "";
-
-  return text.trim();
+function detectExtensionFromDataUrl(imageBase64 = "") {
+  const match = imageBase64.match(/^data:image\/(\w+);base64,/i);
+  if (!match) return "png";
+  const ext = match[1].toLowerCase();
+  if (["jpg", "jpeg", "png", "webp", "bmp", "gif"].includes(ext)) return ext;
+  return "png";
 }
 
-async function extractTextWithOcrSpace(imageBase64, fileName, apiKey) {
-  if (!apiKey) {
-    throw new Error("OCR_SPACE_API_KEY not set");
+async function writeBase64ToTempImage(imageBase64) {
+  const rawImageBase64 = stripDataUrlPrefix(imageBase64);
+  if (!rawImageBase64 || !isLikelyBase64(rawImageBase64)) {
+    throw new Error("imageBase64 must contain valid base64 image content");
   }
 
-  const params = new URLSearchParams();
-  params.append("apikey", apiKey);
-  params.append("base64Image", imageBase64);
-  params.append("language", "eng");
-  params.append("OCREngine", "2");
-  if (fileName) params.append("fileName", fileName);
+  const extension = detectExtensionFromDataUrl(imageBase64);
+  const fileName = `ocr-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+  const tempPath = path.join(os.tmpdir(), fileName);
+  const buffer = Buffer.from(rawImageBase64, "base64");
 
-  const ocrResponse = await fetch(OCR_SPACE_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: params.toString()
-  });
-
-  const payload = await ocrResponse.json();
-  if (!ocrResponse.ok || payload?.IsErroredOnProcessing) {
-    const message = payload?.ErrorMessage?.[0] || payload?.ErrorDetails || "OCR Space failed";
-    throw new Error(message);
+  if (!buffer.length) {
+    throw new Error("Invalid base64 image data");
   }
 
-  const text = (payload?.ParsedResults || [])
-    .map((result) => result.ParsedText || "")
+  await writeFile(tempPath, buffer);
+  return tempPath;
+}
+
+function extractTextFromPrediction(prediction = {}) {
+  if (typeof prediction?.text === "string" && prediction.text.trim()) return prediction.text.trim();
+  if (typeof prediction?.ocr_text === "string" && prediction.ocr_text.trim()) return prediction.ocr_text.trim();
+  if (typeof prediction?.result?.text === "string" && prediction.result.text.trim()) return prediction.result.text.trim();
+
+  const candidates = [
+    ...(Array.isArray(prediction?.predictions) ? prediction.predictions : []),
+    ...(Array.isArray(prediction?.result?.predictions) ? prediction.result.predictions : [])
+  ];
+
+  return candidates
+    .map((entry) => entry?.text || entry?.label || entry?.class)
+    .filter((value) => typeof value === "string" && value.trim())
     .join("\n")
     .trim();
-
-  return text;
 }
 
 // ---- OCR proxy (privacy-first: process and discard) ----
 app.post("/api/ocr", async (req, res) => {
-  try {
-    const { imageBase64, fileName, provider = "auto" } = req.body || {};
+  let tempImagePath = null;
 
-    if (!imageBase64) {
-      return res.status(400).json({ error: "imageBase64 is required" });
+  try {
+    const {
+      imageBase64,
+      imageUrl,
+      provider = "auto",
+      projectName,
+      version,
+      workspaceName
+    } = req.body || {};
+
+    if (!imageBase64 && !imageUrl) {
+      return res.status(400).json({ error: "Provide imageBase64 or imageUrl" });
     }
 
     const selectedProvider = String(provider).toLowerCase();
-    if (!["auto", "google", "ocr_space"].includes(selectedProvider)) {
-      return res.status(400).json({ error: "provider must be one of: auto, google, ocr_space" });
+    if (!["auto", "roboflow"].includes(selectedProvider)) {
+      return res.status(400).json({ error: "provider must be one of: auto, roboflow" });
     }
 
-    const rawImageBase64 = stripDataUrlPrefix(imageBase64);
-    if (!rawImageBase64 || !isLikelyBase64(rawImageBase64)) {
-      return res.status(400).json({ error: "imageBase64 must contain valid base64 image content" });
+    const roboflowApiKey = getApiKey(req, "ROBOFLOW_API_KEY", "x-roboflow-api-key");
+    if (!roboflowApiKey) {
+      return res.status(500).json({ error: "ROBOFLOW_API_KEY not set" });
     }
 
-    let text = "";
-    let usedProvider = selectedProvider;
-    const providerErrors = [];
+    const source = imageUrl || (tempImagePath = await writeBase64ToTempImage(imageBase64));
 
-    const googleVisionApiKey = getApiKey(req, "GOOGLE_VISION_API_KEY", "x-google-vision-api-key");
-    const ocrSpaceApiKey = getApiKey(req, "OCR_SPACE_API_KEY", "x-ocr-space-api-key");
+    const prediction = await runRoboflowOcr({
+      image: source,
+      projectName: projectName || process.env.ROBOFLOW_PROJECT_NAME || "your-project-name",
+      version: Number(version || process.env.ROBOFLOW_PROJECT_VERSION || 1),
+      workspaceName: workspaceName || process.env.ROBOFLOW_WORKSPACE,
+      apiKey: roboflowApiKey
+    });
 
-    const canUseGoogle = Boolean(googleVisionApiKey);
-    const canUseOcrSpace = Boolean(ocrSpaceApiKey);
-
-    if (!canUseGoogle && !canUseOcrSpace) {
-      return res.status(500).json({
-        error: "No OCR provider configured. Set GOOGLE_VISION_API_KEY or OCR_SPACE_API_KEY"
-      });
-    }
-
-    if ((selectedProvider === "google" || selectedProvider === "auto") && canUseGoogle) {
-      try {
-        text = await extractTextWithGoogleVision(rawImageBase64, googleVisionApiKey);
-        usedProvider = "google";
-      } catch (googleError) {
-        providerErrors.push(`google: ${googleError.message}`);
-        if (selectedProvider === "google") {
-          return res.status(502).json({ error: googleError.message });
-        }
-      }
-    }
-
-    if (!text && (selectedProvider === "ocr_space" || selectedProvider === "auto") && canUseOcrSpace) {
-      try {
-        text = await extractTextWithOcrSpace(imageBase64, fileName, ocrSpaceApiKey);
-        usedProvider = "ocr_space";
-      } catch (ocrSpaceError) {
-        providerErrors.push(`ocr_space: ${ocrSpaceError.message}`);
-        if (selectedProvider === "ocr_space") {
-          return res.status(502).json({ error: ocrSpaceError.message });
-        }
-      }
-    }
-
-    if (!text) {
-      return res.status(502).json({
-        error: "OCR failed for all available providers",
-        details: providerErrors
-      });
-    }
+    const text = extractTextFromPrediction(prediction);
 
     return res.json({
       text,
-      provider: usedProvider,
-      ...(providerErrors.length > 0 ? { warnings: providerErrors } : {})
+      provider: "roboflow-sdk",
+      prediction
     });
   } catch (error) {
     console.error("OCR error:", error.message);
     return res.status(500).json({ error: "OCR request failed" });
+  } finally {
+    if (tempImagePath) {
+      await unlink(tempImagePath).catch(() => {});
+    }
   }
 });
 
@@ -645,20 +592,20 @@ app.post("/api/fix-suggestions", async (req, res) => {
       return res.status(400).json({ error: "text is required" });
     }
 
-    const openaiApiKey = getApiKey(req, "OPENAI_API_KEY", "x-openai-api-key");
+    const groqApiKey = getApiKey(req, "GROQ_API_KEY", "x-groq-api-key");
 
-    if (!openaiApiKey) {
-      return res.status(500).json({ error: "OPENAI_API_KEY not set" });
+    if (!groqApiKey) {
+      return res.status(503).json({ error: "GROQ_API_KEY not set" });
     }
 
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
     const systemPrompt =
       "You are a hardware support assistant. Provide concise, safe installation and fixing steps based on OCR text from device labels or serial/model numbers. Avoid unsafe actions and be clear about any missing info.";
 
-    const openaiResponse = await fetch(OPENAI_CHAT_ENDPOINT, {
+    const groqResponse = await fetch(GROQ_CHAT_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
+        Authorization: `Bearer ${groqApiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -675,8 +622,8 @@ app.post("/api/fix-suggestions", async (req, res) => {
       })
     });
 
-    const payload = await openaiResponse.json();
-    if (!openaiResponse.ok) {
+    const payload = await groqResponse.json();
+    if (!groqResponse.ok) {
       const message = payload?.error?.message || "Suggestion request failed";
       return res.status(502).json({ error: message });
     }

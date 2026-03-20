@@ -2,9 +2,7 @@ const STORAGE_KEY = "runtime-api-keys";
 
 const KEY_FIELDS = [
   "groqApiKey",
-  "openaiApiKey",
-  "googleVisionApiKey",
-  "ocrSpaceApiKey"
+  "roboflowApiKey"
 ];
 
 const isBrowser = typeof window !== "undefined";
@@ -51,9 +49,7 @@ export function getApiHeaders() {
   const headers = {};
 
   if (keys.groqApiKey) headers["x-groq-api-key"] = keys.groqApiKey;
-  if (keys.openaiApiKey) headers["x-openai-api-key"] = keys.openaiApiKey;
-  if (keys.googleVisionApiKey) headers["x-google-vision-api-key"] = keys.googleVisionApiKey;
-  if (keys.ocrSpaceApiKey) headers["x-ocr-space-api-key"] = keys.ocrSpaceApiKey;
+  if (keys.roboflowApiKey) headers["x-roboflow-api-key"] = keys.roboflowApiKey;
 
   return headers;
 }

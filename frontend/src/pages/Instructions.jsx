@@ -77,7 +77,7 @@ export default function Instructions() {
         <div style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 12, color: "#E8EAED" }}>Step 1: Download Script</h3>
           <p className="muted">
-            Click the <strong>Download Script</strong> button on the main page and save the file.
+            Download the PowerShell script file <code style={{ background: "#0B1220", padding: "2px 6px", borderRadius: 3 }}>diagnostics.ps1</code> from the home page.
           </p>
 
           <h3 style={{ marginBottom: 12, marginTop: 20, color: "#E8EAED" }}>Step 2: Open PowerShell</h3>
@@ -137,7 +137,7 @@ export default function Instructions() {
         <div style={{ marginTop: 16 }}>
           <h3 style={{ marginBottom: 12, color: "#E8EAED" }}>Step 1: Download Script</h3>
           <p className="muted">
-            Click the <strong>Download Script</strong> button on the main page and save the file.
+            Download the Bash script file <code style={{ background: "#0B1220", padding: "2px 6px", borderRadius: 3 }}>diagnostics.sh</code> from the home page.
           </p>
 
           <h3 style={{ marginBottom: 12, marginTop: 20, color: "#E8EAED" }}>Step 2: Open Terminal</h3>

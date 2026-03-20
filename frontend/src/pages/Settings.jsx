@@ -5,9 +5,7 @@ export default function Settings() {
   const current = getRuntimeKeys();
   const [form, setForm] = useState({
     groqApiKey: current.groqApiKey || "",
-    openaiApiKey: current.openaiApiKey || "",
-    googleVisionApiKey: current.googleVisionApiKey || "",
-    ocrSpaceApiKey: current.ocrSpaceApiKey || ""
+    roboflowApiKey: current.roboflowApiKey || ""
   });
   const [status, setStatus] = useState("");
 
@@ -22,7 +20,7 @@ export default function Settings() {
 
   const onClear = () => {
     clearRuntimeKeys();
-    setForm({ groqApiKey: "", openaiApiKey: "", googleVisionApiKey: "", ocrSpaceApiKey: "" });
+    setForm({ groqApiKey: "", roboflowApiKey: "" });
     setStatus("Cleared runtime keys from this browser.");
   };
 
@@ -54,18 +52,8 @@ export default function Settings() {
         </label>
 
         <label>
-          <p className="label" style={{ marginBottom: 6 }}>OPENAI API KEY (Fix Suggestions)</p>
-          <input type="password" value={form.openaiApiKey} onChange={onChange("openaiApiKey")} style={inputStyle} />
-        </label>
-
-        <label>
-          <p className="label" style={{ marginBottom: 6 }}>GOOGLE VISION API KEY (OCR)</p>
-          <input type="password" value={form.googleVisionApiKey} onChange={onChange("googleVisionApiKey")} style={inputStyle} />
-        </label>
-
-        <label>
-          <p className="label" style={{ marginBottom: 6 }}>OCR SPACE API KEY (OCR fallback)</p>
-          <input type="password" value={form.ocrSpaceApiKey} onChange={onChange("ocrSpaceApiKey")} style={inputStyle} />
+          <p className="label" style={{ marginBottom: 6 }}>ROBOFLOW API KEY (OCR)</p>
+          <input type="password" value={form.roboflowApiKey} onChange={onChange("roboflowApiKey")} style={inputStyle} />
         </label>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
