@@ -3,28 +3,56 @@ import { useNavigate } from "react-router-dom";
 export default function Landing() {
   const navigate = useNavigate();
 
-  const downloadScript = (type) => {
+  const downloadScript = async (type) => {
     const scripts = {
       linux: {
         name: "diagnostics.sh",
-        url: "/diagnostics.sh"
+        url: "/diagnostics.sh",
+        mime: "text/x-shellscript"
       },
       ps1: {
         name: "diagnostics.ps1",
-        url: "/diagnostics.ps1"
+        url: "/diagnostics.ps1",
+        mime: "text/plain"
       },
       windows: {
         name: "diagnostics.bat",
-        url: "/diagnostics.bat"
+        url: "/diagnostics.bat",
+        mime: "text/plain"
       }
     };
 
     const script = scripts[type];
     if (!script) return;
-    const link = document.createElement("a");
-    link.href = script.url;
-    link.download = script.name;
-    link.click();
+
+    try {
+      const origin = window.location.origin;
+      const isLocal = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+      const apiBase = isLocal ? "http://localhost:3000" : origin;
+
+      const response = await fetch(script.url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to fetch script template");
+
+      const template = await response.text();
+      const customized = template
+        .replaceAll("__API_BASE__", apiBase)
+        .replaceAll("__APP_URL__", origin);
+
+      const blob = new Blob([customized], { type: script.mime });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = script.name;
+      link.click();
+
+      URL.revokeObjectURL(downloadUrl);
+    } catch {
+      const link = document.createElement("a");
+      link.href = script.url;
+      link.download = script.name;
+      link.click();
+    }
   };
 
   return (

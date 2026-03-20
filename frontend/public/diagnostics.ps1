@@ -1,9 +1,24 @@
 # Windows PowerShell Diagnostics Script
 # Collects system diagnostic data and sends it to the backend
 
-$BACKEND = "http://localhost:3000/api/submit-diagnostics"
+$BACKEND_BASE = if ($env:API_BASE) { $env:API_BASE.TrimEnd('/') } else { "__API_BASE__" }
+if ($BACKEND_BASE -eq "__API_BASE__") {
+  $BACKEND_BASE = "https://hardware-diagnostics.vercel.app"
+}
+$STATUS = "$BACKEND_BASE/api/status"
+$BACKEND = "$BACKEND_BASE/api/submit-diagnostics"
 
 Write-Host "Running diagnostics..." -ForegroundColor Green
+
+try {
+  Invoke-WebRequest -Uri $STATUS -Method GET -UseBasicParsing -TimeoutSec 8 | Out-Null
+}
+catch {
+  Write-Host "✗ Backend is not reachable at $BACKEND_BASE" -ForegroundColor Red
+  Write-Host "Set API_BASE and retry for deployed backend (example):" -ForegroundColor Yellow
+  Write-Host "$env:API_BASE='https://hardware-diagnostics.vercel.app'; .\diagnostics.ps1" -ForegroundColor Yellow
+  exit 1
+}
 
 # Get CPU usage (percentage)
 $CPU = [math]::Round((Get-Counter '\Processor(_Total)\% Processor Time' -ErrorAction SilentlyContinue).CounterSamples[0].CookedValue, 0)

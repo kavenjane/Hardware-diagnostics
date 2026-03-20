@@ -1,4 +1,7 @@
 @echo off
+set APP_URL=__APP_URL__
+if "%APP_URL%"=="__APP_URL__" set APP_URL=https://hardware-diagnostics.vercel.app
+
 echo Starting Device Health Diagnostics...
 echo.
 
@@ -17,7 +20,7 @@ powershell -ExecutionPolicy Bypass -File "%~dp0diagnostics.ps1"
 if %errorlevel% equ 0 (
     echo.
     echo Diagnostics completed successfully!
-    echo You can now view the results in your browser at: http://localhost:5173/results
+    echo You can now view the results in your browser at: %APP_URL%/results
 ) else (
     echo.
     echo Diagnostics failed. Please check the error messages above.

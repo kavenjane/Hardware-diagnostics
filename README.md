@@ -21,7 +21,6 @@ Core goals:
 - Vercel-ready deployment setup (`vercel.json`, serverless API entrypoint)
 - Script standardization completed:
   - `diagnostics.sh`, `diagnostics.ps1`, `diagnostics.bat`
-  - Matching `run_diagnostics.*` counterparts are kept equivalent
 - Frontend instructions and landing flow updated for both Bash and PowerShell scripts
 - Frontend tests added and passing for major components/pages
 
