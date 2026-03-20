@@ -5,6 +5,7 @@ export default function Settings() {
   const current = getRuntimeKeys();
   const [form, setForm] = useState({
     groqApiKey: current.groqApiKey || "",
+    googleVisionApiKey: current.googleVisionApiKey || "",
     roboflowApiKey: current.roboflowApiKey || ""
   });
   const [status, setStatus] = useState("");
@@ -20,7 +21,7 @@ export default function Settings() {
 
   const onClear = () => {
     clearRuntimeKeys();
-    setForm({ groqApiKey: "", roboflowApiKey: "" });
+    setForm({ groqApiKey: "", googleVisionApiKey: "", roboflowApiKey: "" });
     setStatus("Cleared runtime keys from this browser.");
   };
 
@@ -52,7 +53,12 @@ export default function Settings() {
         </label>
 
         <label>
-          <p className="label" style={{ marginBottom: 6 }}>ROBOFLOW API KEY (OCR)</p>
+          <p className="label" style={{ marginBottom: 6 }}>GOOGLE VISION API KEY (OCR - PRIMARY)</p>
+          <input type="password" value={form.googleVisionApiKey} onChange={onChange("googleVisionApiKey")} style={inputStyle} />
+        </label>
+
+        <label>
+          <p className="label" style={{ marginBottom: 6 }}>ROBOFLOW API KEY (OCR - OPTIONAL FALLBACK)</p>
           <input type="password" value={form.roboflowApiKey} onChange={onChange("roboflowApiKey")} style={inputStyle} />
         </label>
 

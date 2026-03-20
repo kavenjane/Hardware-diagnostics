@@ -529,6 +529,52 @@ function extractTextFromPrediction(prediction = {}) {
     .trim();
 }
 
+function extractTextFromGoogleVision(payload = {}) {
+  const annotation = payload?.responses?.[0] || {};
+  const fullText = annotation?.fullTextAnnotation?.text;
+  if (typeof fullText === "string" && fullText.trim()) return fullText.trim();
+
+  const topText = annotation?.textAnnotations?.[0]?.description;
+  if (typeof topText === "string" && topText.trim()) return topText.trim();
+
+  return "";
+}
+
+async function runGoogleVisionOcr({ imageBase64, imageUrl, apiKey }) {
+  if (!apiKey) throw new Error("GOOGLE_VISION_API_KEY not set");
+
+  const requestImage = imageUrl
+    ? { source: { imageUri: imageUrl } }
+    : { content: extractRawBase64(imageBase64) };
+
+  const response = await fetch(
+    `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [
+          {
+            image: requestImage,
+            features: [{ type: "TEXT_DETECTION" }]
+          }
+        ]
+      })
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      payload?.error?.message ||
+      "Google Vision request failed";
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
 // ---- OCR proxy (privacy-first: process and discard) ----
 app.post("/api/ocr", async (req, res) => {
   let tempImagePath = null;
@@ -547,12 +593,43 @@ app.post("/api/ocr", async (req, res) => {
       return res.status(400).json({ error: "Provide imageBase64 or imageUrl" });
     }
 
-    const selectedProvider = String(provider).toLowerCase();
-    if (!["auto", "roboflow"].includes(selectedProvider)) {
-      return res.status(400).json({ error: "provider must be one of: auto, roboflow" });
+    const normalizedProvider = String(provider).toLowerCase();
+    const selectedProvider =
+      normalizedProvider === "google"
+        ? "google-vision"
+        : normalizedProvider;
+
+    if (!["auto", "google-vision", "roboflow"].includes(selectedProvider)) {
+      return res.status(400).json({ error: "provider must be one of: auto, google-vision, roboflow" });
     }
 
+    const googleVisionApiKey = getApiKey(req, "GOOGLE_VISION_API_KEY", "x-google-vision-api-key");
     const roboflowApiKey = getApiKey(req, "ROBOFLOW_API_KEY", "x-roboflow-api-key");
+
+    let resolvedProvider = selectedProvider;
+    if (resolvedProvider === "auto") {
+      if (googleVisionApiKey) resolvedProvider = "google-vision";
+      else if (roboflowApiKey) resolvedProvider = "roboflow";
+      else {
+        return res.status(500).json({ error: "Set GOOGLE_VISION_API_KEY or ROBOFLOW_API_KEY" });
+      }
+    }
+
+    if (resolvedProvider === "google-vision") {
+      if (!googleVisionApiKey) {
+        return res.status(500).json({ error: "GOOGLE_VISION_API_KEY not set" });
+      }
+
+      const payload = await runGoogleVisionOcr({ imageBase64, imageUrl, apiKey: googleVisionApiKey });
+      const text = extractTextFromGoogleVision(payload);
+
+      return res.json({
+        text,
+        provider: "google-vision",
+        prediction: payload
+      });
+    }
+
     if (!roboflowApiKey) {
       return res.status(500).json({ error: "ROBOFLOW_API_KEY not set" });
     }
@@ -571,7 +648,7 @@ app.post("/api/ocr", async (req, res) => {
 
     return res.json({
       text,
-      provider: "roboflow-sdk",
+      provider: "roboflow",
       prediction
     });
   } catch (error) {

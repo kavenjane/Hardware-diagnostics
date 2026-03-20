@@ -15,7 +15,7 @@ Core goals:
 
 - React + Vite frontend with dashboard, analysis, component detail, results, instructions, scan, and settings pages
 - Express backend with diagnostics APIs and evaluation logic
-- OCR pipeline integrated with **Roboflow**
+- OCR pipeline integrated with **Google Vision API** (with optional Roboflow fallback)
 - AI chat/summaries/fix suggestions integrated with **Groq**
 - Runtime API-key entry flow in frontend (`/settings`) with header-based backend overrides
 - Vercel-ready deployment setup (`vercel.json`, serverless API entrypoint)
@@ -30,7 +30,7 @@ Core goals:
 - Frontend: React, Vite
 - Backend: Node.js, Express
 - Testing: Vitest, Testing Library
-- OCR: Roboflow JavaScript SDK
+- OCR: Google Vision API (+ optional Roboflow fallback)
 - AI: Groq API
 - Deployment: Vercel (static frontend + serverless API)
 
@@ -47,6 +47,7 @@ From repo root:
 Create backend env from sample and set values:
 
 - `GROQ_API_KEY`
+- `GOOGLE_VISION_API_KEY`
 - `ROBOFLOW_API_KEY`
 - `ROBOFLOW_PROJECT_NAME`
 - `ROBOFLOW_PROJECT_VERSION`
@@ -92,6 +93,7 @@ This repository is configured for Vercel deployment with:
 2. Keep root directory as repository root
 3. Add required environment variables in Vercel project settings:
    - `GROQ_API_KEY`
+  - `GOOGLE_VISION_API_KEY`
    - `ROBOFLOW_API_KEY`
    - `ROBOFLOW_PROJECT_NAME`
    - `ROBOFLOW_PROJECT_VERSION`
@@ -107,7 +109,8 @@ This repository is configured for Vercel deployment with:
 ### Vercel Troubleshooting
 
 - **500 on `/api/ocr`**
-  - Ensure `ROBOFLOW_API_KEY`, `ROBOFLOW_PROJECT_NAME`, and `ROBOFLOW_PROJECT_VERSION` are set.
+  - Ensure `GOOGLE_VISION_API_KEY` is set (primary OCR).
+  - If using fallback, also set `ROBOFLOW_API_KEY`, `ROBOFLOW_PROJECT_NAME`, and `ROBOFLOW_PROJECT_VERSION`.
   - Redeploy after updating env vars.
 
 - **503/502 on AI endpoints** (`/api/ai-report-summary`, `/api/ai-chat`, `/api/fix-suggestions`)
@@ -139,10 +142,10 @@ You can use the frontend like a mobile app by adding it to your home screen.
 3. Select **Add to Home Screen**
 4. Tap **Add**
 
-### Scanning (Roboflow OCR + Groq)
+### Scanning (Google Vision OCR + Groq)
 
 Flow:
 1. Capture/upload image
-2. OCR with Roboflow
+2. OCR with Google Vision API
 3. Text understanding/summarization with Groq
 4. Show structured output in UI

@@ -2,6 +2,7 @@ const STORAGE_KEY = "runtime-api-keys";
 
 const KEY_FIELDS = [
   "groqApiKey",
+  "googleVisionApiKey",
   "roboflowApiKey"
 ];
 
@@ -49,6 +50,7 @@ export function getApiHeaders() {
   const headers = {};
 
   if (keys.groqApiKey) headers["x-groq-api-key"] = keys.groqApiKey;
+  if (keys.googleVisionApiKey) headers["x-google-vision-api-key"] = keys.googleVisionApiKey;
   if (keys.roboflowApiKey) headers["x-roboflow-api-key"] = keys.roboflowApiKey;
 
   return headers;
