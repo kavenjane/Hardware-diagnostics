@@ -5,6 +5,7 @@ import LiveMonitor from "../components/LiveMonitor";
 import CategoryBadge from "../components/CategoryBadge";
 import useLiveEvaluation from "../hooks/useLiveEvaluation";
 import { buildApiUrl } from "../utils/apiBase";
+import { getApiHeaders } from "../utils/runtimeKeys";
 
 const hashString = (value = "") => {
   let hash = 0;
@@ -131,7 +132,7 @@ export default function Results() {
     try {
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getApiHeaders() },
         body: JSON.stringify({ report: data, message: question, history: historyForApi })
       });
 
@@ -184,7 +185,7 @@ export default function Results() {
 
     fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getApiHeaders() },
       body: JSON.stringify({ report: data })
     })
       .then(async (res) => {

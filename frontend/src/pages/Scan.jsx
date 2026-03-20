@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { buildApiUrl } from "../utils/apiBase";
+import { getApiHeaders } from "../utils/runtimeKeys";
 
 function toBase64DataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -45,7 +46,7 @@ export default function Scan() {
       const imageBase64 = await toBase64DataUrl(selectedFile);
       const res = await fetch(buildApiUrl("/api/ocr"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getApiHeaders() },
         body: JSON.stringify({ imageBase64, fileName: selectedFile.name })
       });
 
@@ -74,7 +75,7 @@ export default function Scan() {
     try {
       const res = await fetch(buildApiUrl("/api/fix-suggestions"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getApiHeaders() },
         body: JSON.stringify({ text: ocrText })
       });
 

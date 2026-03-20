@@ -32,6 +32,15 @@ const GOOGLE_VISION_ENDPOINT = "https://vision.googleapis.com/v1/images:annotate
 const OPENAI_CHAT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const GROQ_CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
+function getApiKey(req, envName, headerName) {
+  const fromHeader = req.get(headerName);
+  if (typeof fromHeader === "string" && fromHeader.trim()) {
+    return fromHeader.trim();
+  }
+  const fromEnv = process.env[envName];
+  return typeof fromEnv === "string" ? fromEnv.trim() : "";
+}
+
 // ---- Real-time monitoring ----
 function startLiveMonitoring() {
   if (monitoringInterval) return;
@@ -475,13 +484,13 @@ function isLikelyBase64(content = "") {
   return /^[A-Za-z0-9+/=\s]+$/.test(content);
 }
 
-async function extractTextWithGoogleVision(rawImageBase64) {
-  if (!process.env.GOOGLE_VISION_API_KEY) {
+async function extractTextWithGoogleVision(rawImageBase64, apiKey) {
+  if (!apiKey) {
     throw new Error("GOOGLE_VISION_API_KEY not set");
   }
 
   const visionResponse = await fetch(
-    `${GOOGLE_VISION_ENDPOINT}?key=${encodeURIComponent(process.env.GOOGLE_VISION_API_KEY)}`,
+    `${GOOGLE_VISION_ENDPOINT}?key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
       headers: {
@@ -517,13 +526,13 @@ async function extractTextWithGoogleVision(rawImageBase64) {
   return text.trim();
 }
 
-async function extractTextWithOcrSpace(imageBase64, fileName) {
-  if (!process.env.OCR_SPACE_API_KEY) {
+async function extractTextWithOcrSpace(imageBase64, fileName, apiKey) {
+  if (!apiKey) {
     throw new Error("OCR_SPACE_API_KEY not set");
   }
 
   const params = new URLSearchParams();
-  params.append("apikey", process.env.OCR_SPACE_API_KEY);
+  params.append("apikey", apiKey);
   params.append("base64Image", imageBase64);
   params.append("language", "eng");
   params.append("OCREngine", "2");
@@ -574,8 +583,11 @@ app.post("/api/ocr", async (req, res) => {
     let usedProvider = selectedProvider;
     const providerErrors = [];
 
-    const canUseGoogle = Boolean(process.env.GOOGLE_VISION_API_KEY);
-    const canUseOcrSpace = Boolean(process.env.OCR_SPACE_API_KEY);
+    const googleVisionApiKey = getApiKey(req, "GOOGLE_VISION_API_KEY", "x-google-vision-api-key");
+    const ocrSpaceApiKey = getApiKey(req, "OCR_SPACE_API_KEY", "x-ocr-space-api-key");
+
+    const canUseGoogle = Boolean(googleVisionApiKey);
+    const canUseOcrSpace = Boolean(ocrSpaceApiKey);
 
     if (!canUseGoogle && !canUseOcrSpace) {
       return res.status(500).json({
@@ -585,7 +597,7 @@ app.post("/api/ocr", async (req, res) => {
 
     if ((selectedProvider === "google" || selectedProvider === "auto") && canUseGoogle) {
       try {
-        text = await extractTextWithGoogleVision(rawImageBase64);
+        text = await extractTextWithGoogleVision(rawImageBase64, googleVisionApiKey);
         usedProvider = "google";
       } catch (googleError) {
         providerErrors.push(`google: ${googleError.message}`);
@@ -597,7 +609,7 @@ app.post("/api/ocr", async (req, res) => {
 
     if (!text && (selectedProvider === "ocr_space" || selectedProvider === "auto") && canUseOcrSpace) {
       try {
-        text = await extractTextWithOcrSpace(imageBase64, fileName);
+        text = await extractTextWithOcrSpace(imageBase64, fileName, ocrSpaceApiKey);
         usedProvider = "ocr_space";
       } catch (ocrSpaceError) {
         providerErrors.push(`ocr_space: ${ocrSpaceError.message}`);
@@ -633,7 +645,9 @@ app.post("/api/fix-suggestions", async (req, res) => {
       return res.status(400).json({ error: "text is required" });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const openaiApiKey = getApiKey(req, "OPENAI_API_KEY", "x-openai-api-key");
+
+    if (!openaiApiKey) {
       return res.status(500).json({ error: "OPENAI_API_KEY not set" });
     }
 
@@ -644,7 +658,7 @@ app.post("/api/fix-suggestions", async (req, res) => {
     const openaiResponse = await fetch(OPENAI_CHAT_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${openaiApiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -684,7 +698,9 @@ app.post("/api/ai-report-summary", async (req, res) => {
       return res.status(400).json({ error: "report object is required" });
     }
 
-    if (!process.env.GROQ_API_KEY) {
+    const groqApiKey = getApiKey(req, "GROQ_API_KEY", "x-groq-api-key");
+
+    if (!groqApiKey) {
       return res.status(503).json({ error: "GROQ_API_KEY not set" });
     }
 
@@ -705,7 +721,7 @@ app.post("/api/ai-report-summary", async (req, res) => {
     const groqResponse = await fetch(GROQ_CHAT_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${groqApiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -769,7 +785,9 @@ app.post("/api/ai-chat", async (req, res) => {
       return res.status(400).json({ error: "message is required" });
     }
 
-    if (!process.env.GROQ_API_KEY) {
+    const groqApiKey = getApiKey(req, "GROQ_API_KEY", "x-groq-api-key");
+
+    if (!groqApiKey) {
       return res.status(503).json({ error: "GROQ_API_KEY not set" });
     }
 
@@ -797,7 +815,7 @@ app.post("/api/ai-chat", async (req, res) => {
     const groqResponse = await fetch(GROQ_CHAT_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${groqApiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({

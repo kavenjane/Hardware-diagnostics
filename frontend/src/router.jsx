@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Instructions from "./pages/Instructions";
 import ComponentDetail from "./pages/ComponentDetail";
 import Scan from "./pages/Scan";
+import Settings from "./pages/Settings";
 
 export default function Router() {
   return (
@@ -15,6 +16,7 @@ export default function Router() {
       <Route path="/results" element={<Results />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/scan" element={<Scan />} />
+      <Route path="/settings" element={<Settings />} />
       <Route path="/instructions" element={<Instructions />} />
       <Route path="/component/:name" element={<ComponentDetail />} />
     </Routes>

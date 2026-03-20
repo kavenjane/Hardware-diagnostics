@@ -20,8 +20,8 @@ export default function Header() {
           <a href="/dashboard" className={location.pathname === "/dashboard" ? "nav-link active" : "nav-link"}>
             Dashboard
           </a>
-          <a href="#" className="nav-link">
-            Docs
+          <a href="/settings" className={location.pathname === "/settings" ? "nav-link active" : "nav-link"}>
+            API Keys
           </a>
           <a href="#" className="nav-link">
             Support

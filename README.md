@@ -20,6 +20,7 @@ This repository is configured for Vercel deployment with:
 
 - WebSocket live updates are disabled in Vercel serverless mode; frontend automatically falls back to HTTP polling.
 - Local development remains unchanged (`backend` on `:3000`, `frontend` on `:5173`).
+- You can also add API keys directly in production from the website at `/settings` (stored in browser local storage and sent as request headers).
 
 ### Vercel Troubleshooting
 
@@ -51,6 +52,11 @@ This repository is configured for Vercel deployment with:
 - **Local works, Vercel fails**
 	- Compare local `.env` keys with Vercel Environment Variables.
 	- Ensure variable names match exactly (case-sensitive).
+
+- **Need to use own API key quickly in production**
+	- Open `/settings` in the deployed app.
+	- Save your keys there.
+	- Retry scan/AI actions.
 
 ## Mobile PWA
 
