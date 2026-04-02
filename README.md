@@ -71,6 +71,12 @@ Use `diagnostics.ps1`:
 3. If needed once: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 4. Run: `.\diagnostics.ps1`
 
+The script prefers a local backend at `http://localhost:3000` when one is running, and falls back to `https://hardware-diagnostics.vercel.app` otherwise.
+
+Examples:
+- Local development: `$env:API_BASE='http://localhost:3000'; .\diagnostics.ps1`
+- Deployed backend: `$env:API_BASE='https://hardware-diagnostics.vercel.app'; .\diagnostics.ps1`
+
 ### Linux/macOS (Bash file)
 
 Use `diagnostics.sh`:
@@ -78,6 +84,12 @@ Use `diagnostics.sh`:
 2. Open terminal in the download folder.
 3. Make executable: `chmod +x diagnostics.sh`
 4. Run: `./diagnostics.sh`
+
+The script prefers a local backend at `http://localhost:3000` when one is running, and falls back to `https://hardware-diagnostics.vercel.app` otherwise.
+
+Examples:
+- Local development: `API_BASE=http://localhost:3000 ./diagnostics.sh`
+- Deployed backend: `API_BASE=https://hardware-diagnostics.vercel.app ./diagnostics.sh`
 
 ## Deploy on Vercel
 

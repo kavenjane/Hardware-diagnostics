@@ -3,7 +3,14 @@
 
 $BACKEND_BASE = if ($env:API_BASE) { $env:API_BASE.TrimEnd('/') } else { "__API_BASE__" }
 if ($BACKEND_BASE -eq "__API_BASE__") {
-  $BACKEND_BASE = "https://hardware-diagnostics.vercel.app"
+  $LOCAL_BACKEND = "http://localhost:3000"
+  try {
+    Invoke-WebRequest -Uri "$LOCAL_BACKEND/api/status" -Method GET -UseBasicParsing -TimeoutSec 2 | Out-Null
+    $BACKEND_BASE = $LOCAL_BACKEND
+  }
+  catch {
+    $BACKEND_BASE = "https://hardware-diagnostics.vercel.app"
+  }
 }
 $STATUS = "$BACKEND_BASE/api/status"
 $BACKEND = "$BACKEND_BASE/api/submit-diagnostics"
@@ -15,7 +22,8 @@ try {
 }
 catch {
   Write-Host "✗ Backend is not reachable at $BACKEND_BASE" -ForegroundColor Red
-  Write-Host "Set API_BASE and retry for deployed backend (example):" -ForegroundColor Yellow
+  Write-Host "Set API_BASE and retry for a specific backend (examples):" -ForegroundColor Yellow
+  Write-Host "$env:API_BASE='http://localhost:3000'; .\diagnostics.ps1" -ForegroundColor Yellow
   Write-Host "$env:API_BASE='https://hardware-diagnostics.vercel.app'; .\diagnostics.ps1" -ForegroundColor Yellow
   exit 1
 }
