@@ -148,7 +148,7 @@ export default function Landing() {
             <div style={{ background: "#1F2A44", padding: 16, borderRadius: 6, marginTop: 16 }}>
               <p style={{ margin: 0, color: "#9AA0A6", fontSize: 14 }}>
                 <strong>⚠️ Security Note:</strong> These scripts are read-only and collect only basic system metrics.
-                They send data to your local backend server only. No external connections are made.
+                They send data to your configured backend endpoint (default: Vercel deployment). No system changes are made.
               </p>
             </div>
           </div>

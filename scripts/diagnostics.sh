@@ -10,7 +10,7 @@ API_BASE="${API_BASE%/}"
 SUBMIT_URL="$API_BASE/api/submit-diagnostics"
 STATUS_URL="$API_BASE/api/status"
 
-echo "Running diagnostics..."
+echo "Running diagnostics (this script sends HTTP requests; it does not start a backend process)..."
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "ERROR: curl is required but not installed."

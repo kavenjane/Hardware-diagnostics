@@ -8,14 +8,14 @@ if ($BACKEND_BASE -eq "__API_BASE__") {
 $STATUS = "$BACKEND_BASE/api/status"
 $BACKEND = "$BACKEND_BASE/api/submit-diagnostics"
 
-Write-Host "Running diagnostics..." -ForegroundColor Green
+Write-Host "Running diagnostics (this script sends HTTP requests; it does not start a backend process)..." -ForegroundColor Green
 
 try {
   Invoke-WebRequest -Uri $STATUS -Method GET -UseBasicParsing -TimeoutSec 8 | Out-Null
 }
 catch {
   Write-Host "✗ Backend is not reachable at $BACKEND_BASE" -ForegroundColor Red
-  Write-Host "Set API_BASE and retry for deployed backend (example):" -ForegroundColor Yellow
+  Write-Host "Set API_BASE and retry for a specific backend (example):" -ForegroundColor Yellow
   Write-Host "$env:API_BASE='https://hardware-diagnostics.vercel.app'; .\diagnostics.ps1" -ForegroundColor Yellow
   exit 1
 }

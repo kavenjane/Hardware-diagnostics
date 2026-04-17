@@ -63,6 +63,11 @@ Default local URLs:
 
 ## Script Usage (Both Files)
 
+Important:
+- Running a diagnostics script sends HTTP requests to the configured backend URL.
+- It does not start a backend process on your machine.
+- With default settings, requests go to the deployed Vercel backend at `https://hardware-diagnostics.vercel.app`.
+
 ### Windows (PowerShell file)
 
 Use `diagnostics.ps1`:

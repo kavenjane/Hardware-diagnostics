@@ -10,7 +10,7 @@ API_BASE="${API_BASE%/}"
 SUBMIT_URL="$API_BASE/api/submit-diagnostics"
 STATUS_URL="$API_BASE/api/status"
 
-echo "Running diagnostics..."
+echo "Running diagnostics (this script sends HTTP requests; it does not start a backend process)..."
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "ERROR: curl is required but not installed."
@@ -34,7 +34,7 @@ HOSTNAME_VALUE=$(hostname)
 echo "Checking backend at $API_BASE ..."
 if ! curl -sS -m 5 "$STATUS_URL" >/dev/null; then
   echo "ERROR: Backend is not reachable at $API_BASE"
-  echo "Set API_BASE and retry for deployed backend (example):"
+  echo "Set API_BASE and retry for a specific backend (example):"
   echo "API_BASE=https://hardware-diagnostics.vercel.app ./diagnostics.sh"
   exit 1
 fi
