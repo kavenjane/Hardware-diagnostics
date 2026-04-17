@@ -4,12 +4,7 @@ set -euo pipefail
 
 API_BASE="${API_BASE:-__API_BASE__}"
 if [[ "$API_BASE" == "__API_BASE__" ]]; then
-  LOCAL_API_BASE="http://localhost:3000"
-  if curl -sS -m 2 "$LOCAL_API_BASE/api/status" >/dev/null 2>&1; then
-    API_BASE="$LOCAL_API_BASE"
-  else
-    API_BASE="https://hardware-diagnostics.vercel.app"
-  fi
+  API_BASE="https://hardware-diagnostics.vercel.app"
 fi
 API_BASE="${API_BASE%/}"
 SUBMIT_URL="$API_BASE/api/submit-diagnostics"
@@ -39,8 +34,7 @@ HOSTNAME_VALUE=$(hostname)
 echo "Checking backend at $API_BASE ..."
 if ! curl -sS -m 5 "$STATUS_URL" >/dev/null; then
   echo "ERROR: Backend is not reachable at $API_BASE"
-  echo "Set API_BASE and retry for a specific backend (examples):"
-  echo "API_BASE=http://localhost:3000 ./diagnostics.sh"
+  echo "Set API_BASE and retry for a specific backend (example):"
   echo "API_BASE=https://hardware-diagnostics.vercel.app ./diagnostics.sh"
   exit 1
 fi

@@ -71,11 +71,11 @@ Use `diagnostics.ps1`:
 3. If needed once: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 4. Run: `.\diagnostics.ps1`
 
-The script prefers a local backend at `http://localhost:3000` when one is running, and falls back to `https://hardware-diagnostics.vercel.app` otherwise.
+The script defaults to `https://hardware-diagnostics.vercel.app`.
 
 Examples:
-- Local development: `$env:API_BASE='http://localhost:3000'; .\diagnostics.ps1`
-- Deployed backend: `$env:API_BASE='https://hardware-diagnostics.vercel.app'; .\diagnostics.ps1`
+- Vercel backend: `$env:API_BASE='https://hardware-diagnostics.vercel.app'; .\diagnostics.ps1`
+- Local development override: `$env:API_BASE='http://localhost:3000'; .\diagnostics.ps1`
 
 ### Linux/macOS (Bash file)
 
@@ -85,11 +85,11 @@ Use `diagnostics.sh`:
 3. Make executable: `chmod +x diagnostics.sh`
 4. Run: `./diagnostics.sh`
 
-The script prefers a local backend at `http://localhost:3000` when one is running, and falls back to `https://hardware-diagnostics.vercel.app` otherwise.
+The script defaults to `https://hardware-diagnostics.vercel.app`.
 
 Examples:
-- Local development: `API_BASE=http://localhost:3000 ./diagnostics.sh`
-- Deployed backend: `API_BASE=https://hardware-diagnostics.vercel.app ./diagnostics.sh`
+- Vercel backend: `API_BASE=https://hardware-diagnostics.vercel.app ./diagnostics.sh`
+- Local development override: `API_BASE=http://localhost:3000 ./diagnostics.sh`
 
 ## Deploy on Vercel
 
